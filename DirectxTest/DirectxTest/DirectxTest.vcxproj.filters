@@ -1,0 +1,81 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <FxCompile Include="Shaders\Trivial_PS.hlsl" />
+    <FxCompile Include="Shaders\Trivial_VS.hlsl" />
+    <FxCompile Include="Shaders\Depth_VS.hlsl" />
+    <FxCompile Include="Shaders\ColorLit_PS.hlsl" />
+    <FxCompile Include="Shaders\ColorLit_VS.hlsl" />
+    <FxCompile Include="Shaders\Common.inl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />
+    <ClCompile Include="Source\Private\Engine\Component.cpp" />
+    <ClCompile Include="Source\Private\Engine\ComponentManager.cpp" />
+    <ClCompile Include="Source\Private\Engine\Entity.cpp" />
+    <ClCompile Include="Source\Private\Engine\LightComponent.cpp" />
+    <ClCompile Include="Source\Private\Engine\ModelComponent.cpp" />
+    <ClCompile Include="Source\Private\Engine\SceneManager.cpp" />
+    <ClCompile Include="Source\Private\Engine\Texture.cpp" />
+    <ClCompile Include="Source\Private\Engine\TransformComponent.cpp" />
+    <ClCompile Include="Source\Private\Importer\DDSTextureLoader.cpp" />
+    <ClCompile Include="Source\Private\Importer\FBXImporter.cpp" />
+    <ClCompile Include="Source\Private\Importer\TextureImporter.cpp" />
+    <ClCompile Include="Source\Private\Renderer\GraphicsStructures.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Renderer.cpp" />
+    <ClCompile Include="Source\Private\Renderer\ResourceManager.cpp" />
+    <ClCompile Include="Source\Private\Renderer\ShaderUtilities.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Window.cpp" />
+    <ClCompile Include="Source\Private\Source.cpp" />
+    <ClCompile Include="Source\Private\StringUtility.cpp" />
+    <ClCompile Include="Source\Private\XTime.cpp" />
+    <ClCompile Include="Source\Private\stdafx.cpp" />
+    <ClCompile Include="Source\Private\Input\CoreInput.cpp" />
+    <ClCompile Include="Source\Private\Engine\Log.cpp" />
+    <ClCompile Include="Source\Private\Math\MathLibrary.cpp" />
+    <ClCompile Include="Source\Private\Math\Vertex.cpp" />
+    <ClCompile Include="Source\Private\Math\Quaternion.cpp" />
+    <ClCompile Include="Source\Private\Math\Vector4.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Texture2D.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Material.cpp" />
+    <ClCompile Include="Source\Private\Renderer\RenderTexture2D.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Mesh.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Source\Public\Engine\CameraComponent.h" />
+    <ClInclude Include="Source\Public\Engine\Component.h" />
+    <ClInclude Include="Source\Public\Engine\ComponentManager.h" />
+    <ClInclude Include="Source\Public\Engine\Entity.h" />
+    <ClInclude Include="Source\Public\Engine\LightComponent.h" />
+    <ClInclude Include="Source\Public\Engine\ModelComponent.h" />
+    <ClInclude Include="Source\Public\Engine\SceneManager.h" />
+    <ClInclude Include="Source\Public\Engine\Texture.h" />
+    <ClInclude Include="Source\Public\Engine\TransformComponent.h" />
+    <ClInclude Include="Source\Public\Importer\DDSTextureLoader.h" />
+    <ClInclude Include="Source\Public\Importer\FBXImporter.h" />
+    <ClInclude Include="Source\Public\Importer\Mesh.h" />
+    <ClInclude Include="Source\Public\Importer\TextureImporter.h" />
+    <ClInclude Include="Source\Public\Renderer\GraphicsStructures.h" />
+    <ClInclude Include="Source\Public\Renderer\Renderer.h" />
+    <ClInclude Include="Source\Public\Renderer\ResourceManager.h" />
+    <ClInclude Include="Source\Public\Renderer\ShaderBuffers.h" />
+    <ClInclude Include="Source\Public\Renderer\ShaderUtilities.h" />
+    <ClInclude Include="Source\Public\Renderer\Window.h" />
+    <ClInclude Include="Source\Public\DebugMemory.h" />
+    <ClInclude Include="Source\Public\StringUtility.h" />
+    <ClInclude Include="Source\Public\XTime.h" />
+    <ClInclude Include="Source\Public\stdafx.h" />
+    <ClInclude Include="Source\Public\Input\CoreInput.h" />
+    <ClInclude Include="Source\Public\Engine\Log.h" />
+    <ClInclude Include="Source\Public\Math\MathLibrary.h" />
+    <ClInclude Include="Source\Public\Math\Vertex.h" />
+    <ClInclude Include="Source\Public\Math\Quaternion.h" />
+    <ClInclude Include="Source\Public\Math\MathConstants.h" />
+    <ClInclude Include="Source\Public\Math\Vector4.h" />
+    <ClInclude Include="Source\Public\Math\Vector2.h" />
+    <ClInclude Include="Source\Public\Renderer\Texture2D.h" />
+    <ClInclude Include="Source\Public\Renderer\Material.h" />
+    <ClInclude Include="Source\Public\Renderer\RenderTexture2D.h" />
+    <ClInclude Include="Source\Public\Renderer\Mesh.h" />
+  </ItemGroup>
+</Project>
