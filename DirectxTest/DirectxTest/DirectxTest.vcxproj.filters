@@ -6,7 +6,6 @@
     <FxCompile Include="Shaders\Depth_VS.hlsl" />
     <FxCompile Include="Shaders\ColorLit_PS.hlsl" />
     <FxCompile Include="Shaders\ColorLit_VS.hlsl" />
-    <FxCompile Include="Shaders\Common.inl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />
@@ -77,5 +76,6 @@
     <ClInclude Include="Source\Public\Renderer\Material.h" />
     <ClInclude Include="Source\Public\Renderer\RenderTexture2D.h" />
     <ClInclude Include="Source\Public\Renderer\Mesh.h" />
+    <ClInclude Include="Shaders\Common.inl" />
   </ItemGroup>
 </Project>
