@@ -43,11 +43,8 @@ bool FBXImporter::ImportModelFromFile(std::string path, std::vector<Mesh>& meshe
 	// The file is imported; so get rid of the importer.
 	lImporter->Destroy();
 
-	/*FbxAxisSystem directXAxisSys(FbxAxisSystem::EUpVector::eYAxis,
-		FbxAxisSystem::EFrontVector::eParityEven,
-		FbxAxisSystem::eRightHanded);
-	directXAxisSys.ConvertScene(lScene);*/
-	//FbxAxisSystem::DirectX.ConvertScene(lScene);
+	FbxRootNodeUtility::RemoveAllFbxRoots(lScene);
+	FbxAxisSystem::DirectX.ConvertScene(lScene);
 	// Process the scene and build DirectX Arrays
 
 	ProcessFbxMesh(lScene->GetRootNode(), meshes, scale, flags);
@@ -106,11 +103,12 @@ void ProcessFbxMesh(FbxNode* Node, std::vector<Mesh>& meshes, float scale, FBX_I
 			LoadUVInformation(fbxMesh, vertices2, newMesh.indices);
 			ReadTangentBinormalNormal(fbxMesh, vertices2, newMesh.indices, transform);
 			// align (expand) vertex array and set the normals
-			for(int j = 0; j < newMesh.indices.size(); j++)
+			int n = newMesh.indices.size();
+			for(int j = 0; j < n; j++)
 			{
 				vertices2[j].UV.y = 1.f - vertices2[j].UV.y;
 				vertices2[j].Pos = newMesh.vertices[newMesh.indices[j]].Pos;
-				newMesh.indices[j] = j;
+				newMesh.indices[j] = n - j - 1;
 			}
 			newMesh.vertices = vertices2;
 
@@ -168,17 +166,19 @@ FbxAMatrix CalculateTransform(FbxNode* node)
 	if(node->GetNodeAttribute())
 	{
 		FbxVector4 translation = node->GetGeometricTranslation(FbxNode::eSourcePivot);
-		//translation.Set(translation.mData[0], translation.mData[1], -translation.mData[2]);
 		FbxVector4 rotation = node->GetGeometricRotation(FbxNode::eSourcePivot);
-		//rotation.Set(-rotation.mData[0], -rotation.mData[1], rotation.mData[2]);
-		const FbxVector4 scale = node->GetGeometricScaling(FbxNode::eSourcePivot);
+		FbxVector4 scale = node->GetGeometricScaling(FbxNode::eSourcePivot);
 		transform.SetT(translation);
 		transform.SetR(rotation);
 		transform.SetS(scale);
 	}
 	FbxAMatrix globalMatrix = node->EvaluateGlobalTransform();
 
-	FbxAMatrix matrix = globalMatrix * transform;
+	FbxVector4 scale = globalMatrix.GetS();
+	scale.Set(scale.mData[0], scale.mData[1], -scale.mData[2]);
+	globalMatrix.SetS(scale);
+
+	FbxAMatrix matrix = globalMatrix * transform ;
 	return matrix;
 }
 

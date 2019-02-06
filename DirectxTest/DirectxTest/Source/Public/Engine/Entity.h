@@ -3,6 +3,16 @@
 
 #include "Component.h"
 
+struct EntityID
+{
+	std::string name;
+
+	inline bool operator<(const EntityID& rhs) const
+	{
+		return std::tie(name) < std::tie(rhs.name);
+	};
+};
+
 class Entity
 {
 public:

@@ -60,8 +60,8 @@ int WINAPI WinMain(
 
 	//Load up meshes
 	{
-		std::string meshNames[] = {"rock01", "plane01"};
-		float scales[] = {40.f, 5.f};
+		std::string meshNames[] = {"Sphere01", "CornellBox01", "Rock01"};
+		float scales[] = {1.f, 1.f, 40.f};
 		int n = ARRAYSIZE(scales);
 		for(int i = 0; i < n; ++i)
 		{
@@ -78,15 +78,20 @@ int WINAPI WinMain(
 		Material* mat = renderer->CreateMaterialFromFile("Trivial");
 		mat->textures.push_back(renderer->CreateTextureFromFile("Rock01_LP_albedo"));
 		mat->textures.push_back(renderer->CreateTextureFromFile("Rock01_LP_normal"));
+
 		Material* mat2 = renderer->CreateMaterialFromFile("ColorLit");
 
 		Mesh* rock = renderer->GetResourceManager()->CreateResource<Mesh>("Rock01");
-		rock->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("rock01_1");
+		rock->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Rock01_1");
 		rock->material = renderer->GetResourceManager()->GetResource<Material>("Trivial");
 
-		Mesh* plane = renderer->GetResourceManager()->CreateResource<Mesh>("Plane01");
-		plane->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("plane01_1");
-		plane->material = renderer->GetResourceManager()->GetResource<Material>("ColorLit");
+		Mesh* box = renderer->GetResourceManager()->CreateResource<Mesh>("CornellBox01");
+		box->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("CornellBox01_1");
+		box->material = renderer->GetResourceManager()->GetResource<Material>("ColorLit");
+
+		Mesh* sphere = renderer->GetResourceManager()->CreateResource<Mesh>("Sphere01");
+		sphere->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01_1");
+		sphere->material = renderer->GetResourceManager()->GetResource<Material>("Trivial");
 	}
 
 
@@ -95,39 +100,70 @@ int WINAPI WinMain(
 	Entity* cameraEntity = sceneManager->CreateEntity("Camera01");
 	{
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(cameraEntity);
-		transform->SetRotation(XMQuaternionRotationRollPitchYaw(0.f, 0.f, 0.f));
-		transform->SetPosition(XMVectorSet(0.f, 2.f, -10.0f, 1.f));
+		transform->SetRotation(Quaternion::FromAngles(5.f, 0.f, 0.f));
+		transform->SetPosition(XMVectorSet(0.f, 5.f, -25.f, 1.f));
 
 		CameraComponent* camera = sceneManager->CreateComponent<CameraComponent>(cameraEntity);
 		camera->SetProjectionMatrix(90.f, WIDTH / (FLOAT)HEIGHT, 0.01f, 100.0f);
 	}
 
-	Entity* rockEntity = sceneManager->CreateEntity("Rock01");
 	{
-		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(rockEntity);
-		transform->SetRotation(XMQuaternionRotationRollPitchYaw(0.f, 0.f, 0.f));
-		transform->SetPosition(XMVectorSet(0.f, 1.f, 0.f, 1.f));
+		Entity* entity = sceneManager->CreateEntity("Rock01");
+		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
+		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
+		transform->SetPosition(XMVectorSet(20.f, 1.f, 0.f, 1.f));
 
-		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(rockEntity);
+		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Rock01"));
-	}
 
-	Entity* planeEntity = sceneManager->CreateEntity("Plane01");
+	}
 	{
-		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(planeEntity);
-		transform->SetRotation(XMQuaternionRotationRollPitchYaw(0.f, 0.f, 0.f));
+		Entity* entity = sceneManager->CreateEntity("Box01");
+		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
+		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
 		transform->SetPosition(XMVectorSet(0.f, 0.f, 0.f, 1.f));
 
-		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(planeEntity);
-		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Plane01"));
+		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
+		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("CornellBox01"));
+	}
+
+	{
+		Entity* entity = sceneManager->CreateEntity("Sphere01");
+		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
+		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
+		transform->SetPosition(XMVectorSet(4.f, 0.f, 3.f, 1.f));
+
+		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
+		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Sphere01"));
+	}
+
+	{
+		Entity* entity = sceneManager->CreateEntity("Sphere02");
+		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
+		transform->SetRotation(Quaternion::FromAngles(0.f, 45.f, 0.f));
+		transform->SetPosition(XMVectorSet(-4.f, 0.f, 3.f, 1.f));
+
+		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
+		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Sphere01"));
+	}
+
+	{
+		Entity* entity = sceneManager->CreateEntity("Sphere03");
+		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
+		transform->SetRotation(Quaternion::FromAngles(0.f, 180.f, 0.f));
+		transform->SetPosition(XMVectorSet(0.f, 0.f, 4.f, 1.f));
+
+		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
+		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Sphere01"));
 	}
 
 	Entity* directionalLightEntity = sceneManager->CreateEntity("DirectionalLight01");
 	{
-		sceneManager->CreateComponent<TransformComponent>(directionalLightEntity);
+		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(directionalLightEntity);
 		LightComponent* light = sceneManager->CreateComponent<LightComponent>(directionalLightEntity);
+		transform->SetRotation(Quaternion::FromAngles(40.f, 45.f, 0.f));
 		light->SetLightColor(XMFLOAT4(0.9f, 0.85f, 0.8f, 0.f));
-		light->SetLightIntensity(2.f);
+		light->SetLightIntensity(1.f);
 	}
 
 	// time variables
@@ -191,9 +227,6 @@ int WINAPI WinMain(
 			float val = 0.f;
 			val += (CoreInput::GetKeyState(KeyCode::O) == KeyState::Down) * 1.f * timer.Delta();
 			val -= (CoreInput::GetKeyState(KeyCode::L) == KeyState::Down) * 1.f * timer.Delta();
-			TransformComponent* rockT = rockEntity->GetComponent<TransformComponent>();
-			rockT->SetPosition(rockT->GetPosition() + XMVectorSet(0.f, val, 0.f, 0.f));
-
 
 			Vector4 offset = XMVectorSet(x, y, z, 0.f);
 			offset = offset * rot;
@@ -203,15 +236,6 @@ int WINAPI WinMain(
 			transform->SetRotation(rot*verticalRot*horizontalRot);
 
 		} CoreInput::ResetAxes();
-
-		static float yaw = 0.f;
-		float pitch = XMConvertToRadians(22.5f);
-		float roll = XMConvertToRadians(0.f);
-
-		directionalLightEntity->GetComponent<TransformComponent>()->SetRotation(XMQuaternionRotationRollPitchYaw(pitch, yaw, roll));
-
-		yaw += static_cast<float>(timer.Delta());
-
 
 		renderer->SetActiveModels(sceneManager->GetComponents<ModelComponent>());
 		renderer->UpdateLightBuffers(sceneManager->GetComponents<LightComponent>());

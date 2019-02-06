@@ -16,17 +16,13 @@ public:
 	template<class T>
 	std::vector<T>* GetComponents();
 
-	inline std::vector<Entity>& GetEntities() { return m_Entities; };
+	Entity* GetEntity(std::string name);
 
-	inline Entity* CreateEntity(std::string name)
-	{
-		m_Entities.push_back(Entity(name));
-		return &m_Entities.back();
-	}
+	Entity* CreateEntity(std::string name);
 
 private:
 	ComponentManager m_ComponentManager;
-	std::vector<Entity> m_Entities;
+	std::map<EntityID, Entity*> m_Entities;
 	
 };
 

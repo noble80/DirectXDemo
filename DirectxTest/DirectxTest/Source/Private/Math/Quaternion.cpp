@@ -10,7 +10,9 @@ Quaternion::Quaternion(DirectX::XMVECTOR vec)
 
 Quaternion Quaternion::FromAngles(float pitch, float yaw, float roll)
 {
-	return Quaternion(XMQuaternionRotationRollPitchYaw(pitch, yaw, roll));
+
+
+	return Quaternion(XMQuaternionRotationRollPitchYaw(XMConvertToRadians(pitch), XMConvertToRadians(yaw), XMConvertToRadians(roll)));
 }
 
 Quaternion Quaternion::FromAxisAngle(Vector4 axis, float angle)

@@ -17,6 +17,5 @@ struct type_infoComparator
 
 Vector4 operator*(const Vector4& lhs, const Quaternion& rhs);
 
-
 extern float debug1;
 extern float debug2;

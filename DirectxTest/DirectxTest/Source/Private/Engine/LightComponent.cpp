@@ -15,8 +15,8 @@ LightComponent::LightComponent()
 	SetLightFalloff(1.f);
 	SetLightColor(XMFLOAT4(1.f, 1.f, 1.f, 1.f));
 	SetLightType(ELightType::Directional);
-	SetShadowDistance(30.f);
-	SetShadowResolution(1024);
+	SetShadowDistance(100.f);
+	SetShadowResolution(4096);
 	SetShadowNearClip(0.01f);
 	SetShadowBias(0.01f);
 	SetNormalOffset(0.4f);
@@ -47,8 +47,8 @@ DirectX::XMMATRIX LightComponent::GetViewMatrix() const
 
 DirectX::XMMATRIX LightComponent::GetOrtographicProjectionMatrix(XMFLOAT3 min, XMFLOAT3 max) const
 {
-	min = XMFLOAT3(-30.f, -30.f, 0.f);
-	max  = XMFLOAT3(30.f, 30.f, 0.f);
+	//min = XMFLOAT3(-30.f, -30.f, 0.f);
+	//max  = XMFLOAT3(30.f, 30.f, 0.f);
 
 	XMMATRIX proj = XMMatrixOrthographicOffCenterLH(min.x, max.x, min.y, max.y, GetShadowNearClip(), GetShadowDistance());
 	return proj;
