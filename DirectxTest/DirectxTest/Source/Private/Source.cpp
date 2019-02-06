@@ -6,6 +6,8 @@
 #include "Engine\SceneManager.h"
 #include "Renderer\ResourceManager.h"
 
+#include <DirectXColors.h>
+
 #include <windowsx.h>
 #include "XTime.h"
 #include <string>
@@ -18,7 +20,9 @@
 #include "Importer\FBXImporter.h"
 
 #include "Engine\TransformComponent.h"
-#include "Engine\LightComponent.h"
+#include "Engine\DirectionalLightComponent.h"
+#include "Engine\SpotLightComponent.h"
+#include "Engine\PointLightComponent.h"
 #include "Engine\ModelComponent.h"
 #include "Engine\CameraComponent.h"
 
@@ -111,7 +115,7 @@ int WINAPI WinMain(
 		Entity* entity = sceneManager->CreateEntity("Rock01");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
 		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
-		transform->SetPosition(XMVectorSet(20.f, 1.f, 0.f, 1.f));
+		transform->SetPosition(XMVectorSet(10.f, 15.f, 0.f, 1.f));
 
 		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Rock01"));
@@ -160,17 +164,50 @@ int WINAPI WinMain(
 	Entity* directionalLightEntity = sceneManager->CreateEntity("DirectionalLight01");
 	{
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(directionalLightEntity);
-		LightComponent* light = sceneManager->CreateComponent<LightComponent>(directionalLightEntity);
-		transform->SetRotation(Quaternion::FromAngles(40.f, 45.f, 0.f));
-		light->SetLightColor(XMFLOAT4(0.9f, 0.85f, 0.8f, 0.f));
+		DirectionalLightComponent* light = sceneManager->CreateComponent<DirectionalLightComponent>(directionalLightEntity);
+		transform->SetRotation(Quaternion::FromAngles(90.f, 0.f, 0.f));
+		light->SetLightColor(XMVectorSet(0.9f, 0.85f, 0.8f, 0.f));
 		light->SetLightIntensity(1.f);
+	}
+
+	{
+		Entity* entity = sceneManager->CreateEntity("PointLight01");
+		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
+		transform->SetPosition(XMVectorSet(-4.f, 2.f, 2.f, 1.f));
+		PointLightComponent* light = sceneManager->CreateComponent<PointLightComponent>(entity);
+		light->SetLightColor(XMVectorSet(1.f, 0.f, 0.f, 0.f));
+		light->SetLightIntensity(3.f);
+		light->SetRadius(10.f);
+	}
+
+	{
+		Entity* entity = sceneManager->CreateEntity("PointLight02");
+		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
+		transform->SetPosition(XMVectorSet(4.f, 2.f, 2.f, 1.f));
+		PointLightComponent* light = sceneManager->CreateComponent<PointLightComponent>(entity);
+		light->SetLightColor(XMVectorSet(0.f, 1.f, 0.f, 0.f));
+		light->SetLightIntensity(3.f);
+		light->SetRadius(10.f);
+	}
+
+	{
+		Entity* entity = sceneManager->CreateEntity("SpotLight01");
+		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
+		transform->SetPosition(XMVectorSet(-8.00833035, 1.99542284, -4.99794912, 1.00000000));
+		transform->SetRotation(XMVectorSet(0.00148191745, 0.528432846, -0.000922378327, 0.848963261));
+		SpotLightComponent* light = sceneManager->CreateComponent<SpotLightComponent>(entity);
+		light->SetLightColor(XMVectorSet(0.f, 0.f, 1.f, 0.f));
+		light->SetLightIntensity(15.f);
+		light->SetRadius(50.f);
+		light->SetInnerAngle(10.f);
+		light->SetOuterAngle(25.f);
 	}
 
 	// time variables
 	XTime timer;
 
 	renderer->SetActiveCamera(cameraEntity->GetComponent<CameraComponent>());
-	renderer->SetDirectionalLight(directionalLightEntity->GetComponent<LightComponent>());
+	renderer->SetDirectionalLight(directionalLightEntity->GetComponent<DirectionalLightComponent>());
 	// message loop
 	while(window->Update())
 	{
@@ -237,8 +274,10 @@ int WINAPI WinMain(
 
 		} CoreInput::ResetAxes();
 
+		directionalLightEntity->GetComponent<TransformComponent>()->SetRotation(Quaternion::FromAngles(40.f, timer.TotalTime()*15.f, 0.f));
+
 		renderer->SetActiveModels(sceneManager->GetComponents<ModelComponent>());
-		renderer->UpdateLightBuffers(sceneManager->GetComponents<LightComponent>());
+		renderer->UpdateLightBuffers(sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
 		renderer->RenderFrame();
 
 		Log::DebugConsole::PrintDeferred();

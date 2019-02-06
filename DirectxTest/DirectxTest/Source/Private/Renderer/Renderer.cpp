@@ -12,7 +12,9 @@
 #include "Renderer\Mesh.h"
 
 #include "Engine/ModelComponent.h"
-#include "Engine/LightComponent.h"
+#include "Engine/DirectionalLightComponent.h"
+#include "Engine/SpotLightComponent.h"
+#include "Engine/PointLightComponent.h"
 #include "Engine/CameraComponent.h"
 #include "Importer/DDSTextureLoader.h"
 
@@ -469,7 +471,12 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 	CMatricesBuffer* matrices = static_cast<CMatricesBuffer*>(m_MatricesBuffer->cpu);
 
 	matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
-	matrices->NormalView = XMMatrixInverse(nullptr, transform*m_View);
+	XMMATRIX normalMatrix = transform;
+	// Remove translation component
+	normalMatrix.r[3].m128_f32[0] = normalMatrix.r[3].m128_f32[1] = normalMatrix.r[3].m128_f32[2] = 0;
+	normalMatrix.r[3].m128_f32[3] = 1;
+	normalMatrix = XMMatrixInverse(nullptr, normalMatrix);
+	matrices->Normal = XMMatrixTranspose(normalMatrix);
 	matrices->World = XMMatrixTranspose(transform);
 	UpdateConstantBuffer(m_MatricesBuffer);
 
@@ -495,7 +502,7 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 	m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
 }
 
-void Renderer::SetDirectionalLight(LightComponent * light)
+void Renderer::SetDirectionalLight(DirectionalLightComponent * light)
 {
 	m_DirectionalLight = light;
 
@@ -621,21 +628,43 @@ void Renderer::CreateRasterizerStates()
 
 }
 
-void Renderer::UpdateLightBuffers(std::vector<LightComponent>* lights)
+void Renderer::UpdateLightBuffers(std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights)
 {
 	CLightBuffer* buffer = static_cast<CLightBuffer*>(m_LightBuffer->cpu);
-	XMStoreFloat4(&buffer->lightColor, (*lights)[0].GetLightColor());
-	XMVECTOR vec = (*lights)[0].GetLightDirection();
-	vec = XMVector4Transform(vec, m_View);
+	{//Directional light
+		XMVECTOR color = m_DirectionalLight->GetLightColor()*m_DirectionalLight->GetLightIntensity();
+		XMStoreFloat3(&buffer->lightInfo.directionalLight.color, color);
+		XMVECTOR vec = m_DirectionalLight->GetLightDirection();
+		XMStoreFloat3(&buffer->lightInfo.directionalLight.direction, vec);
 
-	XMFLOAT3 dir;
-	XMStoreFloat3(&dir, vec);
-	buffer->lightDirAndIntensity = XMFLOAT4(dir.x, dir.y, dir.z, (*lights)[0].GetLightIntensity());
-	buffer->Shadow = XMMatrixTranspose(m_DirectionalLight->GetLightSpaceMatrix(m_ActiveCamera));
+		buffer->lightInfo.directionalShadowInfo.viewProj = XMMatrixTranspose(m_DirectionalLight->GetLightSpaceMatrix(m_ActiveCamera));
 
-	buffer->BiasOffsetRes.x = m_DirectionalLight->GetShadowBias();
-	buffer->BiasOffsetRes.y = m_DirectionalLight->GetNormalOffset();
-	buffer->BiasOffsetRes.z = m_DirectionalLight->GetShadowResolution();
+		buffer->lightInfo.directionalShadowInfo.bias = m_DirectionalLight->GetShadowBias();
+		buffer->lightInfo.directionalShadowInfo.normalOffset = m_DirectionalLight->GetNormalOffset();
+		buffer->lightInfo.directionalShadowInfo.resolution = m_DirectionalLight->GetShadowResolution();
+	}
+	//Point lights
+	buffer->lightInfo.pointLightCount = pointLights->size();
+	for(int i = 0; i < buffer->lightInfo.pointLightCount; ++i)
+	{
+		XMVECTOR color = (*pointLights)[i].GetLightColor()*(*pointLights)[i].GetLightIntensity();
+		XMStoreFloat3(&buffer->lightInfo.pointLights[i].color, color);
+		XMStoreFloat3(&buffer->lightInfo.pointLights[i].position, (*pointLights)[i].GetPosition());
+		buffer->lightInfo.pointLights[i].radius = (*pointLights)[i].GetRadius();
+	}
+
+	//Spot lights
+	buffer->lightInfo.spotLightCount = spotLights->size();
+	for(int i = 0; i < buffer->lightInfo.spotLightCount; ++i)
+	{
+		XMVECTOR color = (*spotLights)[i].GetLightColor()*(*spotLights)[i].GetLightIntensity();
+		XMStoreFloat3(&buffer->lightInfo.spotLights[i].color, color);
+		XMStoreFloat3(&buffer->lightInfo.spotLights[i].position, (*spotLights)[i].GetPosition());
+		XMStoreFloat3(&buffer->lightInfo.spotLights[i].direction, (*spotLights)[i].GetLightDirection());
+		buffer->lightInfo.spotLights[i].radius = (*spotLights)[i].GetRadius();
+		buffer->lightInfo.spotLights[i].innerCone = cos(XMConvertToRadians((*spotLights)[i].GetInnerAngle()));
+		buffer->lightInfo.spotLights[i].outerCone = cos(XMConvertToRadians((*spotLights)[i].GetOuterAngle()));
+	}
 
 	UpdateConstantBuffer(m_LightBuffer);
 }
@@ -692,7 +721,6 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, Material * mat)
 			UINT offset = 0;
 
 			CMatricesBuffer* matrices = static_cast<CMatricesBuffer*>(m_MatricesBuffer->cpu);
-
 			matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
 			UpdateConstantBuffer(m_MatricesBuffer);
 

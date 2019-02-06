@@ -31,8 +31,10 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
-    <ClInclude Include="Shaders\Common.inl">
+    <ClInclude Include="Shaders\Common.hlsl">
       <FileType>Document</FileType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Effect</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Effect</ShaderType>
     </ClInclude>
     <FxCompile Include="Shaders\Depth_VS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
@@ -58,10 +60,12 @@
     <ClCompile Include="Source\Private\Engine\Component.cpp" />
     <ClCompile Include="Source\Private\Engine\ComponentManager.cpp" />
     <ClCompile Include="Source\Private\Engine\Entity.cpp" />
-    <ClCompile Include="Source\Private\Engine\LightComponent.cpp" />
+    <ClCompile Include="Source\Private\Engine\DirectionalLightComponent.cpp" />
     <ClCompile Include="Source\Private\Engine\Log.cpp" />
     <ClCompile Include="Source\Private\Engine\ModelComponent.cpp" />
+    <ClCompile Include="Source\Private\Engine\PointLightComponent.cpp" />
     <ClCompile Include="Source\Private\Engine\SceneManager.cpp" />
+    <ClCompile Include="Source\Private\Engine\SpotLightComponent.cpp" />
     <ClCompile Include="Source\Private\Engine\Texture.cpp" />
     <ClCompile Include="Source\Private\Engine\TransformComponent.cpp" />
     <ClCompile Include="Source\Private\Importer\DDSTextureLoader.cpp" />
@@ -97,10 +101,12 @@
     <ClInclude Include="Source\Public\Engine\Component.h" />
     <ClInclude Include="Source\Public\Engine\ComponentManager.h" />
     <ClInclude Include="Source\Public\Engine\Entity.h" />
-    <ClInclude Include="Source\Public\Engine\LightComponent.h" />
+    <ClInclude Include="Source\Public\Engine\DirectionalLightComponent.h" />
     <ClInclude Include="Source\Public\Engine\Log.h" />
     <ClInclude Include="Source\Public\Engine\ModelComponent.h" />
+    <ClInclude Include="Source\Public\Engine\PointLightComponent.h" />
     <ClInclude Include="Source\Public\Engine\SceneManager.h" />
+    <ClInclude Include="Source\Public\Engine\SpotLightComponent.h" />
     <ClInclude Include="Source\Public\Engine\Texture.h" />
     <ClInclude Include="Source\Public\Engine\TransformComponent.h" />
     <ClInclude Include="Source\Public\Importer\DDSTextureLoader.h" />

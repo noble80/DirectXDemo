@@ -26,7 +26,9 @@ struct ConstantBuffer;
 struct Texture2D;
 struct RenderTexture2D;
 
-class LightComponent;
+class DirectionalLightComponent;
+class PointLightComponent;
+class SpotLightComponent;
 class CameraComponent;
 class ModelComponent;
 
@@ -50,7 +52,7 @@ public:
 	Material* CreateMaterialFromFile(std::string path);
 	Texture2D* CreateTextureFromFile(std::string path);
 	void DrawMesh(const Mesh* mesh, const DirectX::XMMATRIX& transform);
-	void UpdateLightBuffers(std::vector<LightComponent>* lights);
+	void UpdateLightBuffers(std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights);
 	void UpdateConstantBuffer(ConstantBuffer* buffer);
 	ConstantBuffer* CreateConstantBuffer(uint32_t size, std::string name);
 	inline void SetActiveCamera(CameraComponent* camera) { m_ActiveCamera = camera; };
@@ -59,7 +61,7 @@ public:
 	inline ResourceManager* GetResourceManager() { return m_ResourceManager; };
 
 	inline void SetActiveModels(std::vector<ModelComponent>* models) { m_ActiveModels = models; };
-	void SetDirectionalLight(LightComponent* light);
+	void SetDirectionalLight(DirectionalLightComponent* light);
 
 	void RenderShadowMaps();
 private:
@@ -86,7 +88,7 @@ private:
 	std::vector<ModelComponent>*						m_ActiveModels;
 	Material*											m_DepthMaterial;
 	RenderTexture2D*									m_ShadowMap;
-	LightComponent*										m_DirectionalLight;
+	DirectionalLightComponent*							m_DirectionalLight;
 
 	D3D11_VIEWPORT*										m_ActiveCameraViewport;
 	D3D11_VIEWPORT*										m_DirectionalLightViewport;

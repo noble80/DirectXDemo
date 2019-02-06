@@ -4,13 +4,17 @@
 #include "Engine\CameraComponent.h"
 #include "Engine\ModelComponent.h"
 #include "Engine\TransformComponent.h"
-#include "Engine\LightComponent.h"
+#include "Engine\DirectionalLightComponent.h"
+#include "Engine\PointLightComponent.h"
+#include "Engine\SpotLightComponent.h"
 
 SceneManager::SceneManager()
 {
 	m_ComponentManager.CreateComponentContainer<TransformComponent>(100);
 	m_ComponentManager.CreateComponentContainer<ModelComponent>(100);
-	m_ComponentManager.CreateComponentContainer<LightComponent>(4);
+	m_ComponentManager.CreateComponentContainer<DirectionalLightComponent>(4);
+	m_ComponentManager.CreateComponentContainer<PointLightComponent>(10);
+	m_ComponentManager.CreateComponentContainer<SpotLightComponent>(10);
 	m_ComponentManager.CreateComponentContainer<CameraComponent>(1);
 }
 

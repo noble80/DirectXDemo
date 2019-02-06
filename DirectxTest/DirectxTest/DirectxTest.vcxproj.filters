@@ -12,7 +12,6 @@
     <ClCompile Include="Source\Private\Engine\Component.cpp" />
     <ClCompile Include="Source\Private\Engine\ComponentManager.cpp" />
     <ClCompile Include="Source\Private\Engine\Entity.cpp" />
-    <ClCompile Include="Source\Private\Engine\LightComponent.cpp" />
     <ClCompile Include="Source\Private\Engine\ModelComponent.cpp" />
     <ClCompile Include="Source\Private\Engine\SceneManager.cpp" />
     <ClCompile Include="Source\Private\Engine\Texture.cpp" />
@@ -39,13 +38,15 @@
     <ClCompile Include="Source\Private\Renderer\Material.cpp" />
     <ClCompile Include="Source\Private\Renderer\RenderTexture2D.cpp" />
     <ClCompile Include="Source\Private\Renderer\Mesh.cpp" />
+    <ClCompile Include="Source\Private\Engine\PointLightComponent.cpp" />
+    <ClCompile Include="Source\Private\Engine\SpotLightComponent.cpp" />
+    <ClCompile Include="Source\Private\Engine\DirectionalLightComponent.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Public\Engine\CameraComponent.h" />
     <ClInclude Include="Source\Public\Engine\Component.h" />
     <ClInclude Include="Source\Public\Engine\ComponentManager.h" />
     <ClInclude Include="Source\Public\Engine\Entity.h" />
-    <ClInclude Include="Source\Public\Engine\LightComponent.h" />
     <ClInclude Include="Source\Public\Engine\ModelComponent.h" />
     <ClInclude Include="Source\Public\Engine\SceneManager.h" />
     <ClInclude Include="Source\Public\Engine\Texture.h" />
@@ -76,6 +77,9 @@
     <ClInclude Include="Source\Public\Renderer\Material.h" />
     <ClInclude Include="Source\Public\Renderer\RenderTexture2D.h" />
     <ClInclude Include="Source\Public\Renderer\Mesh.h" />
-    <ClInclude Include="Shaders\Common.inl" />
+    <ClInclude Include="Shaders\Common.hlsl" />
+    <ClInclude Include="Source\Public\Engine\DirectionalLightComponent.h" />
+    <ClInclude Include="Source\Public\Engine\PointLightComponent.h" />
+    <ClInclude Include="Source\Public\Engine\SpotLightComponent.h" />
   </ItemGroup>
 </Project>

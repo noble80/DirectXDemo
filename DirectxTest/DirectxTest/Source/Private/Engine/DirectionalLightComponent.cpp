@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "Engine/LightComponent.h"
+#include "Engine/DirectionalLightComponent.h"
 
 #include "Engine/Entity.h"
 #include "Engine/TransformComponent.h"
@@ -9,12 +9,10 @@ using namespace DirectX;
 using namespace MathConstants;
 using namespace VectorConstants;
 
-LightComponent::LightComponent()
+DirectionalLightComponent::DirectionalLightComponent()
 {
-	SetLightRadius(2.f);
-	SetLightFalloff(1.f);
-	SetLightColor(XMFLOAT4(1.f, 1.f, 1.f, 1.f));
-	SetLightType(ELightType::Directional);
+	SetLightColor(XMVectorSet(1.f, 1.f, 1.f, 1.f));
+	SetLightIntensity(1.0f);
 	SetShadowDistance(100.f);
 	SetShadowResolution(4096);
 	SetShadowNearClip(0.01f);
@@ -22,30 +20,30 @@ LightComponent::LightComponent()
 	SetNormalOffset(0.4f);
 }
 
-LightComponent::~LightComponent()
+DirectionalLightComponent::~DirectionalLightComponent()
 {
 
 }
 
-void LightComponent::Initialize(Entity * owner)
+void DirectionalLightComponent::Initialize(Entity * owner)
 {
 	Component::Initialize(owner);
 	m_Transform = m_Owner->GetComponent<TransformComponent>();
 }
 
-Vector4 LightComponent::GetLightDirection() const
+Vector4 DirectionalLightComponent::GetLightDirection() const
 {
 	return Forward * m_Transform->GetRotation();
 }
 
-DirectX::XMMATRIX LightComponent::GetViewMatrix() const
+DirectX::XMMATRIX DirectionalLightComponent::GetViewMatrix() const
 {
 	Vector4 pos = -GetLightDirection()*(GetShadowDistance() - GetShadowNearClip())*0.5f;	// away from the origin along the direction vector 
 	XMMATRIX view = XMMatrixLookAtLH(pos, Zero, Up);
 	return view;
 }
 
-DirectX::XMMATRIX LightComponent::GetOrtographicProjectionMatrix(XMFLOAT3 min, XMFLOAT3 max) const
+DirectX::XMMATRIX DirectionalLightComponent::GetOrtographicProjectionMatrix(XMFLOAT3 min, XMFLOAT3 max) const
 {
 	//min = XMFLOAT3(-30.f, -30.f, 0.f);
 	//max  = XMFLOAT3(30.f, 30.f, 0.f);
@@ -54,7 +52,7 @@ DirectX::XMMATRIX LightComponent::GetOrtographicProjectionMatrix(XMFLOAT3 min, X
 	return proj;
 }
 
-DirectX::XMMATRIX LightComponent::GetLightSpaceMatrix(CameraComponent* camera) const
+DirectX::XMMATRIX DirectionalLightComponent::GetLightSpaceMatrix(CameraComponent* camera) const
 {
 	float verticalFOV = XMConvertToRadians(camera->GetFOV());
 	XMMATRIX viewProj = camera->GetViewProjectionMatrix();
