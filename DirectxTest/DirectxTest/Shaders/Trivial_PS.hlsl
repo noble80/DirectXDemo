@@ -5,7 +5,7 @@ Texture2D directionalShadowMap : register(t6);
 SamplerState sampleTypeWrap : register(s0);
 SamplerComparisonState sampleTypeShadows : register(s1);
 
-cbuffer LightBuffer : register(b0)
+cbuffer LightInfoBuffer : register(b6)
 {
     LightInfo lightInfo;
 };

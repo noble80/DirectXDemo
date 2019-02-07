@@ -8,6 +8,8 @@
     <FxCompile Include="Shaders\ColorLit_VS.hlsl" />
     <FxCompile Include="Shaders\Debug_VS.hlsl" />
     <FxCompile Include="Shaders\Debug_PS.hlsl" />
+    <FxCompile Include="Shaders\Wave_PS.hlsl" />
+    <FxCompile Include="Shaders\Wave_VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />
@@ -85,5 +87,6 @@
     <ClInclude Include="Source\Public\Engine\PointLightComponent.h" />
     <ClInclude Include="Source\Public\Engine\SpotLightComponent.h" />
     <ClInclude Include="Source\Public\Renderer\DebugHelpers.h" />
+    <ClInclude Include="Source\Public\Importer\ComplexOBJ.h" />
   </ItemGroup>
 </Project>

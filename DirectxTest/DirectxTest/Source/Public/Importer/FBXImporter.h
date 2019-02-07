@@ -12,5 +12,5 @@ namespace FBXImporter
 {
 
 	bool ImportModelFromFile(std::string path, std::vector<Mesh>& meshes, float scale, FBX_IMPORT_FLAG flags);
-
+	Mesh WeakImportModelFromOBJ();
 };

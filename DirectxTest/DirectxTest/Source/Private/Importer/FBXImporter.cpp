@@ -1,7 +1,10 @@
 #include "stdafx.h"
 
 #include "Importer/FBXImporter.h"
+#include "Importer\ComplexOBJ.h"
 #include <fbxsdk.h>
+
+#include <Windows.h>
 
 #include "Engine\Log.h"
 
@@ -52,6 +55,35 @@ bool FBXImporter::ImportModelFromFile(std::string path, std::vector<Mesh>& meshe
 	lSdkManager->Destroy();
 
 	return true;
+}
+
+Mesh FBXImporter::WeakImportModelFromOBJ()
+{
+	Mesh mesh;
+
+	int n = ARRAYSIZE(ComplexFBX_data);
+
+	for(int i = 0; i < n; i++)
+	{
+		Vertex v;
+		v.Pos.x = ComplexFBX_data[i].pos[0]/12.f;
+		v.Pos.y = ComplexFBX_data[i].pos[1]/12.f;
+		v.Pos.z = ComplexFBX_data[i].pos[2]/12.f;
+
+		v.Normal.x = ComplexFBX_data[i].nrm[0];
+		v.Normal.y = ComplexFBX_data[i].nrm[1];
+		v.Normal.z = ComplexFBX_data[i].nrm[2];
+
+		mesh.vertices.push_back(v);
+	}
+
+	n = ARRAYSIZE(ComplexFBX_indicies);
+	for(int i = 0; i < n; i++)
+	{
+		mesh.indices.push_back(ComplexFBX_indicies[i]);
+	}
+
+	return mesh;
 }
 
 

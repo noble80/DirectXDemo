@@ -67,6 +67,18 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\Wave_PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\Wave_VS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />
@@ -123,6 +135,7 @@
     <ClInclude Include="Source\Public\Engine\SpotLightComponent.h" />
     <ClInclude Include="Source\Public\Engine\Texture.h" />
     <ClInclude Include="Source\Public\Engine\TransformComponent.h" />
+    <ClInclude Include="Source\Public\Importer\ComplexOBJ.h" />
     <ClInclude Include="Source\Public\Importer\DDSTextureLoader.h" />
     <ClInclude Include="Source\Public\Importer\FBXImporter.h" />
     <ClInclude Include="Source\Public\Importer\Mesh.h" />

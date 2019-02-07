@@ -4,7 +4,14 @@
 #define POINTLIGHT_MAX 10
 #define SPOTLIGHT_MAX 10
 
-struct CMatricesBuffer
+
+struct CSceneInfoBuffer
+{
+	float time;
+	DirectX::XMFLOAT3 padding;
+};
+
+struct CTransformBuffer
 {
 	DirectX::XMMATRIX WorldViewProjection;
 	DirectX::XMMATRIX Normal;
@@ -58,7 +65,7 @@ struct LightInfo
 	DirectX::XMFLOAT2 padding;
 };
 
-struct CLightBuffer
+struct CLightInfoBuffer
 {
 	LightInfo lightInfo;
 };

@@ -14,7 +14,7 @@ struct ID3D11InputLayout;
 struct ID3D11SamplerState;
 struct ID3D11RasterizerState;
 
-struct CMatricesBuffer;
+struct CTransformBuffer;
 
 class ResourceManager;
 class Window;
@@ -55,6 +55,7 @@ public:
 	void DrawMesh(const Mesh* mesh, const DirectX::XMMATRIX& transform);
 
 	void UpdateLightBuffers(std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights);
+	void UpdateSceneBuffer(float time);
 	void UpdateConstantBuffer(ConstantBuffer* buffer);
 
 	GeometryBuffer* CreateGeometryBuffer(std::string name, std::vector<Vertex>* vertices, std::vector<uint32_t> indices);
@@ -92,8 +93,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>		m_ShadowsRasterizerState;
 
 	   
-	ConstantBuffer*										m_LightBuffer;
-	ConstantBuffer*										m_MatricesBuffer;
+	ConstantBuffer*										m_LightInfoBuffer;
+	ConstantBuffer*										m_SceneInfoBuffer;
+	ConstantBuffer*										m_TransformBuffer;
 	CameraComponent*									m_ActiveCamera;
 	std::vector<ModelComponent>*						m_ActiveModels;
 	Material*											m_DepthMaterial;

@@ -476,16 +476,16 @@ void Renderer::DrawDebugShape(GeometryBuffer * shape, const DirectX::XMMATRIX & 
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 
-	CMatricesBuffer* matrices = static_cast<CMatricesBuffer*>(m_MatricesBuffer->cpu);
+	CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
 
 	matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
-
+	UpdateConstantBuffer(m_TransformBuffer);
 	m_Context->IASetVertexBuffers(0, 1, &shape->vertexBuffer.data, &stride, &offset);
 	m_Context->IASetInputLayout(DebugHelpers::DebugMat->inputLayout);
 	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP);
 
 	m_Context->VSSetShader(DebugHelpers::DebugMat->vertexShader, nullptr, 0);
-	m_Context->VSSetConstantBuffers(0, 1, &m_MatricesBuffer->gpu.data);
+	m_Context->VSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
 	m_Context->PSSetShader(DebugHelpers::DebugMat->pixelShader, nullptr, 0);
 
 	m_Context->Draw(shape->vertexBuffer.size, 0);
@@ -496,7 +496,7 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 
-	CMatricesBuffer* matrices = static_cast<CMatricesBuffer*>(m_MatricesBuffer->cpu);
+	CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
 
 	matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
 	XMMATRIX normalMatrix = transform;
@@ -506,7 +506,7 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 	normalMatrix = XMMatrixInverse(nullptr, normalMatrix);
 	matrices->Normal = XMMatrixTranspose(normalMatrix);
 	matrices->World = XMMatrixTranspose(transform);
-	UpdateConstantBuffer(m_MatricesBuffer);
+	UpdateConstantBuffer(m_TransformBuffer);
 
 	m_Context->IASetVertexBuffers(0, 1, &mesh->geometry->vertexBuffer.data, &stride, &offset);
 	m_Context->IASetIndexBuffer(mesh->geometry->indexBuffer.data, DXGI_FORMAT_R32_UINT, 0);
@@ -514,9 +514,8 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	m_Context->VSSetShader(mesh->material->vertexShader, nullptr, 0);
-	m_Context->VSSetConstantBuffers(0, 1, &m_MatricesBuffer->gpu.data);
+	m_Context->VSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
 	m_Context->PSSetShader(mesh->material->pixelShader, nullptr, 0);
-	m_Context->PSSetConstantBuffers(0, 1, &m_LightBuffer->gpu.data);
 	m_Context->PSSetSamplers(0, 1, m_SamplerLinearWrap.GetAddressOf());
 	m_Context->PSSetSamplers(1, 1, m_ShadowSampler.GetAddressOf());
 	int i = 0;
@@ -541,7 +540,7 @@ void Renderer::SetDirectionalLight(DirectionalLightComponent * light)
 void Renderer::RenderShadowMaps()
 {
 	CreateRasterizerStates();
-	CLightBuffer* buffer = static_cast<CLightBuffer*>(m_LightBuffer->cpu);
+	CLightInfoBuffer* buffer = static_cast<CLightInfoBuffer*>(m_LightInfoBuffer->cpu);
 	m_ViewProjection = m_DirectionalLight->GetLightSpaceMatrix(m_ActiveCamera);
 	m_Context->RSSetState(m_ShadowsRasterizerState.Get());
 	RenderSceneToTexture(m_ShadowMap, m_DepthMaterial);
@@ -554,8 +553,9 @@ void Renderer::InitializeDefaultShaders()
 
 void Renderer::InitializeConstantBuffers()
 {
-	m_MatricesBuffer = CreateConstantBuffer(sizeof(CMatricesBuffer), "CMatricesBuffer");
-	m_LightBuffer = CreateConstantBuffer(sizeof(CLightBuffer), "LightBuffer");
+	m_TransformBuffer = CreateConstantBuffer(sizeof(CTransformBuffer), "TransformBuffer");
+	m_LightInfoBuffer = CreateConstantBuffer(sizeof(CLightInfoBuffer), "LightInfoBuffer");
+	m_SceneInfoBuffer = CreateConstantBuffer(sizeof(CSceneInfoBuffer), "SceneInfoBuffer");
 }
 
 void Renderer::InitializeShadowMaps(int resolution)
@@ -658,7 +658,7 @@ void Renderer::CreateRasterizerStates()
 
 void Renderer::UpdateLightBuffers(std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights)
 {
-	CLightBuffer* buffer = static_cast<CLightBuffer*>(m_LightBuffer->cpu);
+	CLightInfoBuffer* buffer = static_cast<CLightInfoBuffer*>(m_LightInfoBuffer->cpu);
 	{//Directional light
 		XMVECTOR color = m_DirectionalLight->GetLightColor()*m_DirectionalLight->GetLightIntensity();
 		XMStoreFloat3(&buffer->lightInfo.directionalLight.color, color);
@@ -694,7 +694,16 @@ void Renderer::UpdateLightBuffers(std::vector<PointLightComponent>* pointLights,
 		buffer->lightInfo.spotLights[i].outerCone = cos(XMConvertToRadians((*spotLights)[i].GetOuterAngle()));
 	}
 
-	UpdateConstantBuffer(m_LightBuffer);
+	UpdateConstantBuffer(m_LightInfoBuffer);
+	m_Context->PSSetConstantBuffers(6, 1, &m_LightInfoBuffer->gpu.data);
+}
+
+void Renderer::UpdateSceneBuffer(float time)
+{
+	CSceneInfoBuffer* buffer = static_cast<CSceneInfoBuffer*>(m_SceneInfoBuffer->cpu);
+	buffer->time = time;
+	UpdateConstantBuffer(m_SceneInfoBuffer);
+	m_Context->VSSetConstantBuffers(5, 1, &m_LightInfoBuffer->gpu.data);
 }
 
 
@@ -748,9 +757,9 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, Material * mat)
 			UINT stride = sizeof(Vertex);
 			UINT offset = 0;
 
-			CMatricesBuffer* matrices = static_cast<CMatricesBuffer*>(m_MatricesBuffer->cpu);
+			CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
 			matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
-			UpdateConstantBuffer(m_MatricesBuffer);
+			UpdateConstantBuffer(m_TransformBuffer);
 
 			m_Context->IASetVertexBuffers(0, 1, &mesh->geometry->vertexBuffer.data, &stride, &offset);
 			m_Context->IASetIndexBuffer(mesh->geometry->indexBuffer.data, DXGI_FORMAT_R32_UINT, 0);
@@ -758,7 +767,7 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, Material * mat)
 			m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 			m_Context->VSSetShader(mat->vertexShader, nullptr, 0);
-			m_Context->VSSetConstantBuffers(0, 1, &m_MatricesBuffer->gpu.data);
+			m_Context->VSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
 			m_Context->PSSetShader(mat->pixelShader, nullptr, 0);
 
 			m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
