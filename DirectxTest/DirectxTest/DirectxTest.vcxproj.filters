@@ -6,6 +6,8 @@
     <FxCompile Include="Shaders\Depth_VS.hlsl" />
     <FxCompile Include="Shaders\ColorLit_PS.hlsl" />
     <FxCompile Include="Shaders\ColorLit_VS.hlsl" />
+    <FxCompile Include="Shaders\Debug_VS.hlsl" />
+    <FxCompile Include="Shaders\Debug_PS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />
@@ -41,6 +43,7 @@
     <ClCompile Include="Source\Private\Engine\PointLightComponent.cpp" />
     <ClCompile Include="Source\Private\Engine\SpotLightComponent.cpp" />
     <ClCompile Include="Source\Private\Engine\DirectionalLightComponent.cpp" />
+    <ClCompile Include="Source\Private\Renderer\DebugHelpers.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Public\Engine\CameraComponent.h" />
@@ -81,5 +84,6 @@
     <ClInclude Include="Source\Public\Engine\DirectionalLightComponent.h" />
     <ClInclude Include="Source\Public\Engine\PointLightComponent.h" />
     <ClInclude Include="Source\Public\Engine\SpotLightComponent.h" />
+    <ClInclude Include="Source\Public\Renderer\DebugHelpers.h" />
   </ItemGroup>
 </Project>

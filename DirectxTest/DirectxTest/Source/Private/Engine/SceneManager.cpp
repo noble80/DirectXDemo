@@ -21,6 +21,10 @@ SceneManager::SceneManager()
 
 SceneManager::~SceneManager()
 {
+	for(auto& it: m_Entities)
+	{
+		delete it.second;
+	}
 }
 
 Entity * SceneManager::GetEntity(std::string name)

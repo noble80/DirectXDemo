@@ -1,4 +1,5 @@
 #pragma once
+#define _USE_MATH_DEFINES
 #include <DirectXMath.h>
 #include "MathConstants.h"
 #include "Vertex.h"
@@ -6,6 +7,7 @@
 #include "Vector2.h"
 #include "Quaternion.h"
 #include <algorithm>
+#include <math.h>
 
 struct type_infoComparator
 {
@@ -14,6 +16,11 @@ struct type_infoComparator
 		return lhs->before(*rhs);
 	}
 };
+
+namespace MathLibrary
+{
+	Vector4 SphericalToCartesian(float phi, float theta);
+}
 
 Vector4 operator*(const Vector4& lhs, const Quaternion& rhs);
 

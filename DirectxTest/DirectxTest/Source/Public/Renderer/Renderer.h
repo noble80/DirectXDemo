@@ -33,6 +33,8 @@ class CameraComponent;
 class ModelComponent;
 
 struct Vertex;
+struct D3D11_BUFFER_DESC;
+struct D3D11_SUBRESOURCE_DATA;
 
 class Renderer
 {
@@ -46,25 +48,33 @@ public:
 	bool Shutdown();
 	bool InitializeGeometryPass();
 	bool Draw();
-	bool RenderFrame();
+	void RenderFrame();
+	bool PresentFrame();
+
+	void DrawDebugShape(GeometryBuffer* shape, const DirectX::XMMATRIX& transform);
+	void DrawMesh(const Mesh* mesh, const DirectX::XMMATRIX& transform);
+
+	void UpdateLightBuffers(std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights);
+	void UpdateConstantBuffer(ConstantBuffer* buffer);
 
 	GeometryBuffer* CreateGeometryBuffer(std::string name, std::vector<Vertex>* vertices, std::vector<uint32_t> indices);
 	Material* CreateMaterialFromFile(std::string path);
 	Texture2D* CreateTextureFromFile(std::string path);
-	void DrawMesh(const Mesh* mesh, const DirectX::XMMATRIX& transform);
-	void UpdateLightBuffers(std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights);
-	void UpdateConstantBuffer(ConstantBuffer* buffer);
 	ConstantBuffer* CreateConstantBuffer(uint32_t size, std::string name);
+	ID3D11Buffer* CreateD3DBuffer(D3D11_BUFFER_DESC* desc, D3D11_SUBRESOURCE_DATA* InitData);
+
 	inline void SetActiveCamera(CameraComponent* camera) { m_ActiveCamera = camera; };
+
 	void RenderSceneToTexture(RenderTexture2D* output, Material* mat);
+
 
 	inline ResourceManager* GetResourceManager() { return m_ResourceManager; };
 
 	inline void SetActiveModels(std::vector<ModelComponent>* models) { m_ActiveModels = models; };
 	void SetDirectionalLight(DirectionalLightComponent* light);
 
-	void RenderShadowMaps();
 private:
+	void RenderShadowMaps();
 	void InitializeDefaultShaders();
 	void InitializeConstantBuffers();
 	void InitializeShadowMaps(int resolution);

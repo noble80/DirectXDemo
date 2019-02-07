@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Renderer/ResourceManager.h"
 
+#include <d3d11.h>
 
 ResourceManager::ResourceManager()
 {

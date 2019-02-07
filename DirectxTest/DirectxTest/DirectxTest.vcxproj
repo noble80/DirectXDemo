@@ -36,6 +36,19 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Effect</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Effect</ShaderType>
     </ClInclude>
+    <FxCompile Include="Shaders\Debug_VS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\Debug_PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <FileType>Document</FileType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\Depth_VS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
@@ -74,6 +87,7 @@
     <ClCompile Include="Source\Private\Input\CoreInput.cpp" />
     <ClCompile Include="Source\Private\Math\MathLibrary.cpp" />
     <ClCompile Include="Source\Private\Math\Vector4.cpp" />
+    <ClCompile Include="Source\Private\Renderer\DebugHelpers.cpp" />
     <ClCompile Include="Source\Private\Renderer\GraphicsStructures.cpp" />
     <ClCompile Include="Source\Private\Renderer\Material.cpp" />
     <ClCompile Include="Source\Private\Renderer\Renderer.cpp" />
@@ -119,6 +133,7 @@
     <ClInclude Include="Source\Public\Math\Quaternion.h" />
     <ClInclude Include="Source\Public\Math\Vector2.h" />
     <ClInclude Include="Source\Public\Math\Vector4.h" />
+    <ClInclude Include="Source\Public\Renderer\DebugHelpers.h" />
     <ClInclude Include="Source\Public\Renderer\GraphicsStructures.h" />
     <ClInclude Include="Source\Public\Renderer\Material.h" />
     <ClInclude Include="Source\Public\Renderer\Mesh.h" />

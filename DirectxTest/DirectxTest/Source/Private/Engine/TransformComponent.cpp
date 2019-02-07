@@ -7,6 +7,7 @@ TransformComponent::TransformComponent()
 {
 	SetPosition(XMVectorZero());
 	SetRotation(XMQuaternionIdentity());
+	SetScale(XMVectorSet(1.f, 1.f, 1.f, 1.f));
 }
 
 
@@ -16,6 +17,6 @@ TransformComponent::~TransformComponent()
 
 XMMATRIX TransformComponent::GetTransformMatrix()
 {
-	XMMATRIX output = m_Rotation.ToRotationMatrix() * XMMatrixTranslationFromVector(m_Position);
+	XMMATRIX output = XMMatrixScalingFromVector(m_Scale) * m_Rotation.ToRotationMatrix() * XMMatrixTranslationFromVector(m_Position);
 	return output;
 }

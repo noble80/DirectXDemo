@@ -17,7 +17,7 @@ Quaternion Quaternion::FromAngles(float pitch, float yaw, float roll)
 
 Quaternion Quaternion::FromAxisAngle(Vector4 axis, float angle)
 {
-	return Quaternion(XMQuaternionRotationAxis(axis, angle));
+	return Quaternion(XMQuaternionRotationAxis(axis, XMConvertToRadians(angle)));
 }
 
 DirectX::XMMATRIX Quaternion::ToRotationMatrix() const

@@ -29,6 +29,8 @@
 #include "DebugMemory.h"
 #include "Engine\Log.h"
 
+#include "Renderer\DebugHelpers.h"
+
 #include <d3d11_1.h>
 #include <d3d11.h>
 
@@ -51,7 +53,7 @@ int WINAPI WinMain(
 
 	// this function call will set a breakpoint at the location of a leaked block
 	// set the parameter to the identifier for a leaked block
-	//_CrtSetBreakAlloc(27237);
+	//_CrtSetBreakAlloc(227251);
 
 	Log::DebugConsole::Initialize();
 
@@ -84,6 +86,7 @@ int WINAPI WinMain(
 		mat->textures.push_back(renderer->CreateTextureFromFile("Rock01_LP_normal"));
 
 		Material* mat2 = renderer->CreateMaterialFromFile("ColorLit");
+		mat2->textures.push_back(renderer->CreateTextureFromFile("CornellBoxAO"));
 
 		Mesh* rock = renderer->GetResourceManager()->CreateResource<Mesh>("Rock01");
 		rock->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Rock01_1");
@@ -115,7 +118,7 @@ int WINAPI WinMain(
 		Entity* entity = sceneManager->CreateEntity("Rock01");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
 		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
-		transform->SetPosition(XMVectorSet(10.f, 15.f, 0.f, 1.f));
+		transform->SetPosition(XMVectorSet(0.f, 0.f, 0.f, 1.f));
 
 		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Rock01"));
@@ -198,7 +201,7 @@ int WINAPI WinMain(
 		SpotLightComponent* light = sceneManager->CreateComponent<SpotLightComponent>(entity);
 		light->SetLightColor(XMVectorSet(0.f, 0.f, 1.f, 0.f));
 		light->SetLightIntensity(15.f);
-		light->SetRadius(50.f);
+		light->SetRadius(22.f);
 		light->SetInnerAngle(10.f);
 		light->SetOuterAngle(25.f);
 	}
@@ -208,10 +211,19 @@ int WINAPI WinMain(
 
 	renderer->SetActiveCamera(cameraEntity->GetComponent<CameraComponent>());
 	renderer->SetDirectionalLight(directionalLightEntity->GetComponent<DirectionalLightComponent>());
+
+	// Debug stuff
+#ifdef _DEBUG
+	DebugHelpers::CreateDebugSphere(renderer, 20);
+	DebugHelpers::DebugMat = renderer->CreateMaterialFromFile("Debug");
+#endif
+
 	// message loop
 	while(window->Update())
 	{
 		timer.Signal();
+		float deltaTime = static_cast<double>(timer.Delta());
+		float totalTime = static_cast<double>(timer.TotalTime());
 
 		static DWORD frameCount = 0; ++frameCount;
 		static DWORD framesPast = frameCount;
@@ -233,8 +245,8 @@ int WINAPI WinMain(
 			y = static_cast<float>(CoreInput::GetMouseY());
 
 			static float accumAngleY = 0.f;
-			float angleX = XMConvertToRadians(x*0.2f);
-			float angleY = XMConvertToRadians(y*0.2f);;
+			float angleX = XMConvertToRadians(x*10.f);
+			float angleY = XMConvertToRadians(y*10.f);;
 
 			Quaternion rot = transform->GetRotation();
 			Quaternion horizontalRot = Quaternion::FromAxisAngle(VectorConstants::Up, angleX);
@@ -252,18 +264,18 @@ int WINAPI WinMain(
 			y = 0;
 			z = 0;
 
-			x -= (CoreInput::GetKeyState(KeyCode::A) == KeyState::Down) * 10.f * timer.Delta();
-			x += (CoreInput::GetKeyState(KeyCode::D) == KeyState::Down) * 10.f * timer.Delta();
+			x -= (CoreInput::GetKeyState(KeyCode::A) == KeyState::Down) * 10.f * deltaTime;
+			x += (CoreInput::GetKeyState(KeyCode::D) == KeyState::Down) * 10.f * deltaTime;
 
-			y += (CoreInput::GetKeyState(KeyCode::Space) == KeyState::Down) * 10.f * timer.Delta();
-			y -= (CoreInput::GetKeyState(KeyCode::Control) == KeyState::Down) * 10.f * timer.Delta();
+			y += (CoreInput::GetKeyState(KeyCode::Space) == KeyState::Down) * 10.f * deltaTime;
+			y -= (CoreInput::GetKeyState(KeyCode::Control) == KeyState::Down) * 10.f * deltaTime;
 
-			z += (CoreInput::GetKeyState(KeyCode::W) == KeyState::Down) * 10.f * timer.Delta();
-			z -= (CoreInput::GetKeyState(KeyCode::S) == KeyState::Down) * 10.f * timer.Delta();
+			z += (CoreInput::GetKeyState(KeyCode::W) == KeyState::Down) * 10.f * deltaTime;
+			z -= (CoreInput::GetKeyState(KeyCode::S) == KeyState::Down) * 10.f * deltaTime;
 
 			float val = 0.f;
-			val += (CoreInput::GetKeyState(KeyCode::O) == KeyState::Down) * 1.f * timer.Delta();
-			val -= (CoreInput::GetKeyState(KeyCode::L) == KeyState::Down) * 1.f * timer.Delta();
+			val += (CoreInput::GetKeyState(KeyCode::O) == KeyState::Down) * 1.f * deltaTime;
+			val -= (CoreInput::GetKeyState(KeyCode::L) == KeyState::Down) * 1.f * deltaTime;
 
 			Vector4 offset = XMVectorSet(x, y, z, 0.f);
 			offset = offset * rot;
@@ -274,13 +286,35 @@ int WINAPI WinMain(
 
 		} CoreInput::ResetAxes();
 
-		directionalLightEntity->GetComponent<TransformComponent>()->SetRotation(Quaternion::FromAngles(40.f, timer.TotalTime()*15.f, 0.f));
+		directionalLightEntity->GetComponent<TransformComponent>()->SetRotation(Quaternion::FromAngles(40.f, totalTime*15.f, 0.f));
+
+		for(auto& light : *sceneManager->GetComponents<PointLightComponent>())
+		{
+			TransformComponent* transform = light.GetOwner()->GetComponent<TransformComponent>();
+			Vector4 pos = transform->GetPosition();
+			transform->SetPosition(pos + XMVectorSet(sin(totalTime)*0.05f, cos(totalTime)*0.04f, 0.f, 0.f));
+		}
+
+		for(auto& light : *sceneManager->GetComponents<SpotLightComponent>())
+		{
+			TransformComponent* transform = light.GetOwner()->GetComponent<TransformComponent>();
+			Vector4 pos = transform->GetPosition();
+			Quaternion rot = transform->GetRotation();
+			rot = rot * Quaternion::FromAxisAngle(rot.GetUpVector(), -deltaTime * 45.f);
+			transform->SetPosition(pos + XMVectorSet(sin(totalTime)*0.05f, 0.f, 0.f, 0.f));
+			transform->SetRotation(rot);
+		}
 
 		renderer->SetActiveModels(sceneManager->GetComponents<ModelComponent>());
 		renderer->UpdateLightBuffers(sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
 		renderer->RenderFrame();
 
+	#ifdef _DEBUG
+		renderer->DrawDebugShape(DebugHelpers::DebugSphere, XMMatrixIdentity());
 		Log::DebugConsole::PrintDeferred();
+	#endif
+
+		renderer->PresentFrame();
 	}
 
 	// return the right message parameter as exit code

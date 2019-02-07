@@ -14,7 +14,7 @@ DirectionalLightComponent::DirectionalLightComponent()
 	SetLightColor(XMVectorSet(1.f, 1.f, 1.f, 1.f));
 	SetLightIntensity(1.0f);
 	SetShadowDistance(100.f);
-	SetShadowResolution(4096);
+	SetShadowResolution(2048);
 	SetShadowNearClip(0.01f);
 	SetShadowBias(0.01f);
 	SetNormalOffset(0.4f);
@@ -95,18 +95,18 @@ DirectX::XMMATRIX DirectionalLightComponent::GetLightSpaceMatrix(CameraComponent
 	}
 
 
-	float fNormalizeByBufferSize = (1.0f / m_ShadowResolution);
-	XMVECTOR vNormalizeByBufferSize = XMVectorSet(fNormalizeByBufferSize, fNormalizeByBufferSize, fNormalizeByBufferSize, 0.0f);
-	XMVECTOR vWorldUnitsPerTexel = max - min;
-	vWorldUnitsPerTexel *= vNormalizeByBufferSize;
+	float txlSize = (1.0f / m_ShadowResolution);
+	Vector4 txlSizeVec = XMVectorSet(txlSize, txlSize, 0.f, 0.0f);
+	Vector4 txlWorldUnits = max - min;
+	txlWorldUnits *= txlSizeVec;
 
-	min /= vWorldUnitsPerTexel;
+	min /= txlWorldUnits;
 	min = XMVectorFloor(min);
-	min *= vWorldUnitsPerTexel;
+	min *= txlWorldUnits;
 
-	max /= vWorldUnitsPerTexel;
+	max /= txlWorldUnits;
 	max = XMVectorFloor(max);
-	max *= vWorldUnitsPerTexel;
+	max *= txlWorldUnits;
 
 	XMFLOAT3 a, b;
 	XMStoreFloat3(&a, min);

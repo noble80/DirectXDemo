@@ -17,6 +17,16 @@ public:
 		return m_Position;
 	};
 
+	inline void SetScale(const Vector4& scale)
+	{
+		m_Scale = scale;
+	};
+
+	inline Vector4 GetScale() const
+	{
+		return m_Scale;
+	};
+
 	inline void SetRotation(const Quaternion& rot)
 	{
 		m_Rotation = rot;
@@ -30,6 +40,7 @@ public:
 	DirectX::XMMATRIX GetTransformMatrix();
 private:
 	Vector4 m_Position;
+	Vector4 m_Scale;
 	Quaternion m_Rotation;
 };
 

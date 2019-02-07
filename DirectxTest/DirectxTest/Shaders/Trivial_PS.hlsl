@@ -1,7 +1,7 @@
 #include "Common.hlsl"
 
 Texture2D shaderTextures[2] : register(t0);
-Texture2D directionalShadowMap : register(t2);
+Texture2D directionalShadowMap : register(t6);
 SamplerState sampleTypeWrap : register(s0);
 SamplerComparisonState sampleTypeShadows : register(s1);
 
@@ -30,7 +30,7 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
 	normalMap = shaderTextures[1].Sample(sampleTypeWrap, pIn.Tex).wyz * 2.f - 1.f;
 	normalMap.z = sqrt(1 - normalMap.x*normalMap.x - normalMap.y * normalMap.y);
 
-    normal = 2*normalMap.x * pIn.tangent + 2*normalMap.y * pIn.binormal + normalMap.z * pIn.NormalWS;
+    normal = normalMap.x * pIn.tangent + normalMap.y * pIn.binormal + normalMap.z * pIn.NormalWS;
 	//normal = pIn.NormalWS;
 	normal = normalize(normal);
 

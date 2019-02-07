@@ -1,6 +1,11 @@
 #pragma once
 #include "stdafx.h"
 #include "GraphicsStructures.h"
+
+struct ID3D11Buffer;
+struct D3D11_SUBRESOURCE_DATA;
+struct D3D11_BUFFER_DESC;
+
 class ResourceManager
 {
 public:
@@ -34,6 +39,8 @@ public:
 	}
 
 	bool RemoveResource(Resource* res, std::string name);
+
+	ID3D11Buffer* CreateD3DBuffer(D3D11_BUFFER_DESC* desc, D3D11_SUBRESOURCE_DATA* InitData);
 
 	bool Initialize();
 	bool Shutdown();

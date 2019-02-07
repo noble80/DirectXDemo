@@ -21,6 +21,7 @@
 #include "StringUtility.h"
 
 #include "Math/Vertex.h"
+#include "Renderer\DebugHelpers.h"
 
 #include <d3d11_1.h>
 #include <DirectXPackedVector.h>
@@ -318,7 +319,7 @@ bool Renderer::Draw()
 
 
 
-bool Renderer::RenderFrame(void)
+void Renderer::RenderFrame(void)
 {
 	RenderShadowMaps();
 	InitializeGeometryPass();
@@ -330,8 +331,11 @@ bool Renderer::RenderFrame(void)
 		}
 	}
 	ID3D11ShaderResourceView* null = nullptr;
-	m_Context->PSSetShaderResources(2, 1, &null);
+	m_Context->PSSetShaderResources(6, 1, &null);
+}
 
+bool Renderer::PresentFrame()
+{
 	HRESULT hr;
 	// switch the back buffer and the front buffer
 	DXGI_PRESENT_PARAMETERS params{};
@@ -365,17 +369,17 @@ GeometryBuffer* Renderer::CreateGeometryBuffer(std::string name, std::vector<Ver
 
 		D3D11_SUBRESOURCE_DATA InitData{};
 		InitData.pSysMem = vertices->data();
-		hr = m_Device->CreateBuffer(&bd, &InitData, &buffer->vertexBuffer.data);
-		if(SUCCEEDED(hr))
+		buffer->vertexBuffer.data = CreateD3DBuffer(&bd, &InitData);
+		if(buffer->vertexBuffer.data)
 		{
 			bd.Usage = D3D11_USAGE_DEFAULT;
 			bd.ByteWidth = sizeof(uint32_t) * buffer->indexBuffer.size;
 			bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 			bd.CPUAccessFlags = 0;
 			InitData.pSysMem = indices.data();
-			hr = m_Device->CreateBuffer(&bd, &InitData, &buffer->indexBuffer.data);
+			buffer->indexBuffer.data = CreateD3DBuffer(&bd, &InitData);
 
-			if(SUCCEEDED(hr))
+			if(buffer->indexBuffer.data)
 				return buffer;
 		}
 
@@ -463,6 +467,30 @@ Texture2D * Renderer::CreateTextureFromFile(std::string name)
 	return nullptr;
 }
 
+void Renderer::DrawDebugShape(GeometryBuffer * shape, const DirectX::XMMATRIX & transform)
+{
+	assert(DebugHelpers::DebugMat != nullptr && shape != nullptr);
+
+	m_Context->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), nullptr);
+
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+
+	CMatricesBuffer* matrices = static_cast<CMatricesBuffer*>(m_MatricesBuffer->cpu);
+
+	matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
+
+	m_Context->IASetVertexBuffers(0, 1, &shape->vertexBuffer.data, &stride, &offset);
+	m_Context->IASetInputLayout(DebugHelpers::DebugMat->inputLayout);
+	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP);
+
+	m_Context->VSSetShader(DebugHelpers::DebugMat->vertexShader, nullptr, 0);
+	m_Context->VSSetConstantBuffers(0, 1, &m_MatricesBuffer->gpu.data);
+	m_Context->PSSetShader(DebugHelpers::DebugMat->pixelShader, nullptr, 0);
+
+	m_Context->Draw(shape->vertexBuffer.size, 0);
+}
+
 void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 {
 	UINT stride = sizeof(Vertex);
@@ -497,7 +525,7 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 		m_Context->PSSetShaderResources(i, 1, &mesh->material->textures[i]->shaderResourceView);
 		++i;
 	}
-	m_Context->PSSetShaderResources(i, 1, &m_ShadowMap->shaderResourceView);
+	m_Context->PSSetShaderResources(6, 1, &m_ShadowMap->shaderResourceView);
 
 	m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
 }
@@ -738,4 +766,16 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, Material * mat)
 	}
 
 	m_Context->OMSetRenderTargets(1, &output->renderTargetView, nullptr);
+}
+
+ID3D11Buffer* Renderer::CreateD3DBuffer(D3D11_BUFFER_DESC* desc, D3D11_SUBRESOURCE_DATA* InitData)
+{
+	ID3D11Buffer* buffer;
+
+	HRESULT hr = m_Device->CreateBuffer(desc, InitData, &buffer);
+
+	if(SUCCEEDED(hr))
+		return buffer;
+	else
+		return nullptr;
 }

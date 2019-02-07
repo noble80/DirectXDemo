@@ -83,7 +83,7 @@ float4 bdrf(float3 normal, float3 normalWS, float3 positionWS, float3 textureCol
 		float3 lightPos = info.pointLights[i].position;
         float3 dir = normalize(lightPos - positionWS);
         float dist = length(lightPos - positionWS);
-        float lightRatio = saturate(dot(normalWS, dir));
+        float lightRatio = saturate(dot(normal, dir));
         float attenuation = saturate(1.0f - dist * dist / (radius * radius));
         attenuation *= attenuation;
         output += info.pointLights[i].color * lightRatio * attenuation;
@@ -98,7 +98,7 @@ float4 bdrf(float3 normal, float3 normalWS, float3 positionWS, float3 textureCol
         float3 dir = normalize(lightPos - positionWS);
         float dist = length(lightPos - positionWS);
 
-        float lightRatio = saturate(dot(normalWS, dir));
+        float lightRatio = saturate(dot(normal, dir));
         float pAttenuation = saturate(1.0f - dist * dist / (radius * radius));
         pAttenuation *= pAttenuation;
 
