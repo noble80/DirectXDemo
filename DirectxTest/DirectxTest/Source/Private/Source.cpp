@@ -17,7 +17,7 @@
 #include "Renderer\Texture2D.h"
 #include "Renderer\Mesh.h"
 #include "Renderer\ShaderBuffers.h"
-#include "Importer\FBXImporter.h"
+#include "Importer\MeshImporter.h"
 
 #include "Engine\TransformComponent.h"
 #include "Engine\DirectionalLightComponent.h"
@@ -71,14 +71,10 @@ int WINAPI WinMain(
 		int n = ARRAYSIZE(scales);
 		for(int i = 0; i < n; ++i)
 		{
-			std::vector<FBXImporter::Mesh> fbxmeshes;
-			FBXImporter::ImportModelFromFile(meshNames[i], fbxmeshes, scales[i], 0); // FBX_IMPORT_FLAG_SWAP_YZ);
+			MeshImporter::Mesh mesh;
+			MeshImporter::ImportModelFromFile(meshNames[i], mesh); // FBX_IMPORT_FLAG_SWAP_YZ);
 			int j = 1;
-			for(auto& fbxmesh : fbxmeshes)
-			{
-				renderer->CreateGeometryBuffer(meshNames[i] + "_" + std::to_string(j), &fbxmesh.vertices, fbxmesh.indices);
-				j++;
-			}
+			renderer->CreateGeometryBuffer(mesh.name, &mesh.vertices, mesh.indices);
 		}
 		//Create materials
 		Material* rockMat = renderer->CreateMaterialFromFile("Trivial");
@@ -89,24 +85,24 @@ int WINAPI WinMain(
 		cornellBoxMat->textures.push_back(renderer->CreateTextureFromFile("CornellBoxAO"));
 
 		Mesh* rock = renderer->GetResourceManager()->CreateResource<Mesh>("Rock01");
-		rock->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Rock01_1");
+		rock->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Rock01");
 		rock->material = rockMat;
 
 		Mesh* box = renderer->GetResourceManager()->CreateResource<Mesh>("CornellBox01");
-		box->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("CornellBox01_1");
+		box->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("CornellBox01");
 		box->material = cornellBoxMat;
 
 		Mesh* sphere = renderer->GetResourceManager()->CreateResource<Mesh>("Sphere01");
-		sphere->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01_1");
+		sphere->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01");
 		sphere->material = renderer->GetResourceManager()->GetResource<Material>("Trivial");
 
 		Mesh* waveSphere = renderer->GetResourceManager()->CreateResource<Mesh>("WaveSphere01");
-		waveSphere->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01_1");
+		waveSphere->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01");
 		waveSphere->material = renderer->CreateMaterialFromFile("Wave");
 
 
 		{
-			FBXImporter::Mesh imesh = FBXImporter::WeakImportModelFromOBJ();
+			MeshImporter::Mesh imesh = MeshImporter::WeakImportModelFromOBJ();
 			Mesh* obj = renderer->GetResourceManager()->CreateResource<Mesh>("ComplexMeshOBJ");
 			obj->geometry = renderer->CreateGeometryBuffer("complexOBJ", &imesh.vertices, imesh.indices);
 			obj->material = cornellBoxMat;
@@ -129,6 +125,7 @@ int WINAPI WinMain(
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
 		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
 		transform->SetPosition(XMVectorSet(0.f, 0.f, 0.f, 1.f));
+		transform->SetScale(XMVectorSet(0.025f, 0.025f, 0.025f, 1.f));
 
 		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Rock01"));
@@ -158,7 +155,7 @@ int WINAPI WinMain(
 		Entity* entity = sceneManager->CreateEntity("ComplexOBJ");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
 		transform->SetRotation(Quaternion::FromAngles(0.f, -60.f, 0.f));
-		transform->SetPosition(XMVectorSet(-5.f, 0.2f,3.f, 1.f));
+		transform->SetPosition(XMVectorSet(-5.f, 0.2f, 3.f, 1.f));
 
 		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("ComplexMeshOBJ"));
@@ -206,8 +203,8 @@ int WINAPI WinMain(
 	{
 		Entity* entity = sceneManager->CreateEntity("SpotLight01");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
-		transform->SetPosition(XMVectorSet(-8.00833035, 1.99542284, -4.99794912, 1.00000000));
-		transform->SetRotation(XMVectorSet(0.00148191745, 0.528432846, -0.000922378327, 0.848963261));
+		transform->SetPosition(XMVectorSet(-8.00833035f, 1.99542284f, -4.99794912f, 1.00000000f));
+		transform->SetRotation(XMVectorSet(0.00148191745f, 0.528432846f, -0.000922378327f, 0.848963261f));
 		SpotLightComponent* light = sceneManager->CreateComponent<SpotLightComponent>(entity);
 		light->SetLightColor(XMVectorSet(0.f, 0.f, 1.f, 0.f));
 		light->SetLightIntensity(15.f);
@@ -232,8 +229,8 @@ int WINAPI WinMain(
 	while(window->Update())
 	{
 		timer.Signal();
-		float deltaTime = static_cast<double>(timer.Delta());
-		float totalTime = static_cast<double>(timer.TotalTime());
+		float deltaTime = static_cast<float>(timer.Delta());
+		float totalTime = static_cast<float>(timer.TotalTime());
 
 		static DWORD frameCount = 0; ++frameCount;
 		static DWORD framesPast = frameCount;
@@ -316,11 +313,11 @@ int WINAPI WinMain(
 
 		renderer->SetActiveModels(sceneManager->GetComponents<ModelComponent>());
 		renderer->UpdateLightBuffers(sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
-		renderer->UpdateSceneBuffer(timer.TotalTime());
+		renderer->UpdateSceneBuffer(totalTime);
 		renderer->RenderFrame();
 
 	#ifdef _DEBUG
-		renderer->DrawDebugShape(DebugHelpers::DebugSphere, sceneManager->GetEntity("Rock01")->GetComponent<TransformComponent>()->GetTransformMatrix());
+		renderer->DrawDebugShape(DebugHelpers::DebugSphere, sceneManager->GetEntity("Sphere01")->GetComponent<TransformComponent>()->GetTransformMatrix());
 		Log::DebugConsole::PrintDeferred();
 	#endif
 

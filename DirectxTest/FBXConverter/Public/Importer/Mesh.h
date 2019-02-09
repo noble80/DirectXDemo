@@ -2,7 +2,7 @@
 
 #include "Math/Vertex.h"
 
-namespace MeshImporter
+namespace FBXImporter
 {
 	struct Mesh
 	{

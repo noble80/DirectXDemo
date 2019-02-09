@@ -1,12 +1,8 @@
-#include "stdafx.h"
-
 #include "Importer/FBXImporter.h"
 #include "Importer\ComplexOBJ.h"
 #include <fbxsdk.h>
-
+#include <iostream>
 #include <Windows.h>
-
-#include "Engine\Log.h"
 
 using namespace std;
 using namespace FBXImporter;
@@ -20,7 +16,7 @@ void ReadTangentBinormalNormal(FbxMesh* inMesh, std::vector<Vertex>& vertices, s
 
 bool FBXImporter::ImportModelFromFile(std::string path, std::vector<Mesh>& meshes, float scale, FBX_IMPORT_FLAG flags)
 {
-	std::string fixedPath = "../Models/" + path + ".fbx";
+	std::string fixedPath = path;
 	// Initialize the SDK manager. This object handles all our memory management.
 	FbxManager* lSdkManager = FbxManager::Create();
 
@@ -57,34 +53,6 @@ bool FBXImporter::ImportModelFromFile(std::string path, std::vector<Mesh>& meshe
 	return true;
 }
 
-Mesh FBXImporter::WeakImportModelFromOBJ()
-{
-	Mesh mesh;
-
-	int n = ARRAYSIZE(ComplexFBX_data);
-
-	for(int i = 0; i < n; i++)
-	{
-		Vertex v;
-		v.Pos.x = ComplexFBX_data[i].pos[0]/12.f;
-		v.Pos.y = ComplexFBX_data[i].pos[1]/12.f;
-		v.Pos.z = ComplexFBX_data[i].pos[2]/12.f;
-
-		v.Normal.x = ComplexFBX_data[i].nrm[0];
-		v.Normal.y = ComplexFBX_data[i].nrm[1];
-		v.Normal.z = ComplexFBX_data[i].nrm[2];
-
-		mesh.vertices.push_back(v);
-	}
-
-	n = ARRAYSIZE(ComplexFBX_indicies);
-	for(int i = 0; i < n; i++)
-	{
-		mesh.indices.push_back(ComplexFBX_indicies[i]);
-	}
-
-	return mesh;
-}
 
 
 void ProcessFbxMesh(FbxNode* Node, std::vector<Mesh>& meshes, float scale, FBX_IMPORT_FLAG flags)
@@ -93,7 +61,7 @@ void ProcessFbxMesh(FbxNode* Node, std::vector<Mesh>& meshes, float scale, FBX_I
 	//FBX Mesh stuff
 	int childrenCount = Node->GetChildCount();
 
-	Log::DebugConsole::DeferredMessage << "\nName:" << Node->GetName();
+	cout << "\nName:" << Node->GetName();
 
 	for(int i = 0; i < childrenCount; i++)
 	{
@@ -107,11 +75,11 @@ void ProcessFbxMesh(FbxNode* Node, std::vector<Mesh>& meshes, float scale, FBX_I
 
 			FbxAMatrix transform = CalculateTransform(childNode);
 
-			Log::DebugConsole::DeferredMessage << "\nMesh:" << childNode->GetName();
+			cout << "\nMesh:" << childNode->GetName();
 
 			// Get index count from mesh
 			newMesh.indices.resize(uint32_t(fbxMesh->GetPolygonVertexCount()));
-			Log::DebugConsole::DeferredMessage << "\nIndice Count:" << newMesh.indices.size();
+			cout << "\nIndice Count:" << newMesh.indices.size();
 
 			// No need to allocate int array, FBX does for us
 			int* ind = fbxMesh->GetPolygonVertices();
@@ -119,7 +87,7 @@ void ProcessFbxMesh(FbxNode* Node, std::vector<Mesh>& meshes, float scale, FBX_I
 
 			// Get vertex count from mesh
 			newMesh.vertices.resize(fbxMesh->GetControlPointsCount());
-			Log::DebugConsole::DeferredMessage << "\nVertex Count:" << newMesh.vertices.size();
+			cout << "\nVertex Count:" << newMesh.vertices.size();
 			FbxVector4* vertexArray = fbxMesh->GetControlPoints();
 			//================= Process Vertices ===================
 			for(int j = 0; j < newMesh.vertices.size(); j++)
@@ -135,7 +103,7 @@ void ProcessFbxMesh(FbxNode* Node, std::vector<Mesh>& meshes, float scale, FBX_I
 			LoadUVInformation(fbxMesh, vertices2, newMesh.indices);
 			ReadTangentBinormalNormal(fbxMesh, vertices2, newMesh.indices, transform);
 			// align (expand) vertex array and set the normals
-			int n = newMesh.indices.size();
+			int n = static_cast<int>(newMesh.indices.size());
 			for(int j = 0; j < n; j++)
 			{
 				vertices2[j].UV.y = 1.f - vertices2[j].UV.y;
@@ -156,12 +124,12 @@ void ProcessFbxMesh(FbxNode* Node, std::vector<Mesh>& meshes, float scale, FBX_I
 				newMesh.vertices[j].Pos.z /= scale;
 			}
 
-			Log::DebugConsole::DeferredMessage << "\nindex count BEFORE/AFTER compaction " << newMesh.indices.size();
-			Log::DebugConsole::DeferredMessage << "\nvertex count ORIGINAL (FBX source): " << originalNumVertices;
-			Log::DebugConsole::DeferredMessage << "\nvertex count AFTER expansion: " << newMesh.indices.size();
-			Log::DebugConsole::DeferredMessage << "\nvertex count AFTER compaction: " << newMesh.vertices.size();
-			Log::DebugConsole::DeferredMessage << "\nSize reduction: " << ((newMesh.indices.size() - newMesh.vertices.size()) / (float)newMesh.indices.size())*100.00f << "%";
-			Log::DebugConsole::DeferredMessage << "\nor " << (newMesh.vertices.size() / (float)newMesh.indices.size()) << " of the expanded size";
+			cout << "\nindex count BEFORE/AFTER compaction " << newMesh.indices.size();
+			cout << "\nvertex count ORIGINAL (FBX source): " << originalNumVertices;
+			cout << "\nvertex count AFTER expansion: " << newMesh.indices.size();
+			cout << "\nvertex count AFTER compaction: " << newMesh.vertices.size();
+			cout << "\nSize reduction: " << ((newMesh.indices.size() - newMesh.vertices.size()) / (float)newMesh.indices.size())*100.00f << "%";
+			cout << "\nor " << (newMesh.vertices.size() / (float)newMesh.indices.size()) << " of the expanded size";
 
 			newMesh.name = childNode->GetName();
 

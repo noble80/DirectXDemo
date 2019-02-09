@@ -94,7 +94,7 @@
     <ClCompile Include="Source\Private\Engine\Texture.cpp" />
     <ClCompile Include="Source\Private\Engine\TransformComponent.cpp" />
     <ClCompile Include="Source\Private\Importer\DDSTextureLoader.cpp" />
-    <ClCompile Include="Source\Private\Importer\FBXImporter.cpp" />
+    <ClCompile Include="Source\Private\Importer\MeshImporter.cpp" />
     <ClCompile Include="Source\Private\Importer\TextureImporter.cpp" />
     <ClCompile Include="Source\Private\Input\CoreInput.cpp" />
     <ClCompile Include="Source\Private\Math\MathLibrary.cpp" />
@@ -137,7 +137,7 @@
     <ClInclude Include="Source\Public\Engine\TransformComponent.h" />
     <ClInclude Include="Source\Public\Importer\ComplexOBJ.h" />
     <ClInclude Include="Source\Public\Importer\DDSTextureLoader.h" />
-    <ClInclude Include="Source\Public\Importer\FBXImporter.h" />
+    <ClInclude Include="Source\Public\Importer\MeshImporter.h" />
     <ClInclude Include="Source\Public\Importer\Mesh.h" />
     <ClInclude Include="Source\Public\Importer\TextureImporter.h" />
     <ClInclude Include="Source\Public\Input\CoreInput.h" />
