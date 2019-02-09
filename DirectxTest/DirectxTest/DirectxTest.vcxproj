@@ -152,6 +152,8 @@
     <ClCompile Include="Source\Private\Renderer\Mesh.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Shaders\PSIncludes.hlsl" />
+    <ClInclude Include="Shaders\VSIncludes.hlsl" />
     <ClInclude Include="Source\Public\DebugMemory.h" />
     <ClInclude Include="Source\Public\Engine\CameraComponent.h" />
     <ClInclude Include="Source\Public\Engine\Component.h" />
@@ -185,6 +187,7 @@
     <ClInclude Include="Source\Public\Renderer\ResourceManager.h" />
     <ClInclude Include="Source\Public\Renderer\ShaderBuffers.h" />
     <ClInclude Include="Source\Public\Renderer\ShaderUtilities.h" />
+    <ClInclude Include="Source\Public\Renderer\SurfaceParameters.h" />
     <ClInclude Include="Source\Public\Renderer\Texture2D.h" />
     <ClInclude Include="Source\Public\Renderer\Window.h" />
     <ClInclude Include="Source\Public\StringUtility.h" />

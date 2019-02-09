@@ -1,6 +1,8 @@
 #pragma once
 #include "Texture2D.h"
 
+#include "SurfaceParameters.h"
+
 struct Material : Resource
 {
 public:
@@ -8,6 +10,7 @@ public:
 	ID3D11PixelShader*	pixelShader;
 	ID3D11InputLayout* inputLayout;
 	std::vector<Texture2D*> textures;
+	SurfaceProperties surfaceParameters;
 
 	Material();
 	virtual ~Material() override;

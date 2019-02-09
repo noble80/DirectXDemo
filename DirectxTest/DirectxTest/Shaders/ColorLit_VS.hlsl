@@ -1,9 +1,4 @@
-cbuffer ObjectBuffer : register(b0)
-{
-	matrix WorldViewProjection;
-	matrix Normal;
-	matrix World;
-}
+#include "VSIncludes.hlsl"
 
 struct INPUT_VERTEX
 {

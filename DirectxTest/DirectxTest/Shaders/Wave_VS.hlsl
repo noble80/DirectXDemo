@@ -1,15 +1,5 @@
-cbuffer ObjectBuffer : register(b0)
-{
-	matrix WorldViewProjection;
-	matrix Normal;
-	matrix World;
-}
+#include "VSIncludes.hlsl"
 
-cbuffer SceneInfoBuffer : register(b5)
-{
-    float3 _EyePosition;
-    float _Time;
-};
 
 struct INPUT_VERTEX
 {

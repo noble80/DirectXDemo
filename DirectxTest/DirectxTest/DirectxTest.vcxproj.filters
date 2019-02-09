@@ -93,5 +93,8 @@
     <ClInclude Include="Source\Public\Importer\ComplexOBJ.h" />
     <ClInclude Include="Source\Public\Importer\MeshImporter.h" />
     <ClInclude Include="Source\Public\Engine\MeshComponent.h" />
+    <ClInclude Include="Source\Public\Renderer\SurfaceParameters.h" />
+    <ClInclude Include="Shaders\PSIncludes.hlsl" />
+    <ClInclude Include="Shaders\VSIncludes.hlsl" />
   </ItemGroup>
 </Project>

@@ -523,6 +523,7 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 	matrices->Normal = XMMatrixTranspose(normalMatrix);
 	matrices->World = XMMatrixTranspose(transform);
 	UpdateConstantBuffer(m_TransformBuffer);
+	UpdateMaterialSurfaceBuffer(&mesh->material->surfaceParameters);
 
 	m_Context->IASetVertexBuffers(0, 1, &mesh->geometry->vertexBuffer.data, &stride, &offset);
 	m_Context->IASetIndexBuffer(mesh->geometry->indexBuffer.data, DXGI_FORMAT_R32_UINT, 0);
@@ -572,6 +573,7 @@ void Renderer::InitializeConstantBuffers()
 	m_TransformBuffer = CreateConstantBuffer(sizeof(CTransformBuffer), "TransformBuffer");
 	m_LightInfoBuffer = CreateConstantBuffer(sizeof(CLightInfoBuffer), "LightInfoBuffer");
 	m_SceneInfoBuffer = CreateConstantBuffer(sizeof(CSceneInfoBuffer), "SceneInfoBuffer");
+	m_MaterialSurfaceBuffer = CreateConstantBuffer(sizeof(SurfaceProperties), "MaterialSurfaceBuffer");
 }
 
 void Renderer::InitializeShadowMaps(float resolution)
@@ -672,7 +674,7 @@ void Renderer::CreateRasterizerStates()
 
 }
 
-void Renderer::UpdateLightBuffers(std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights)
+void Renderer::UpdateLightBuffers(XMFLOAT3 ambientColor, std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights)
 {
 	CLightInfoBuffer* buffer = static_cast<CLightInfoBuffer*>(m_LightInfoBuffer->cpu);
 	{//Directional light
@@ -709,6 +711,7 @@ void Renderer::UpdateLightBuffers(std::vector<PointLightComponent>* pointLights,
 		buffer->lightInfo.spotLights[i].innerCone = cos(XMConvertToRadians((*spotLights)[i].GetInnerAngle()));
 		buffer->lightInfo.spotLights[i].outerCone = cos(XMConvertToRadians((*spotLights)[i].GetOuterAngle()));
 	}
+	buffer->lightInfo.ambientColor = ambientColor;
 
 	UpdateConstantBuffer(m_LightInfoBuffer);
 	m_Context->PSSetConstantBuffers(6, 1, &m_LightInfoBuffer->gpu.data);
@@ -722,6 +725,15 @@ void Renderer::UpdateSceneBuffer(float time)
 	UpdateConstantBuffer(m_SceneInfoBuffer);
 	m_Context->VSSetConstantBuffers(5, 1, &m_SceneInfoBuffer->gpu.data);
 	m_Context->PSSetConstantBuffers(5, 1, &m_SceneInfoBuffer->gpu.data);
+}
+
+void Renderer::UpdateMaterialSurfaceBuffer(const SurfaceProperties* prop)
+{
+
+	SurfaceProperties* buffer = static_cast<SurfaceProperties*>(m_MaterialSurfaceBuffer->cpu);
+	memcpy(buffer, prop, sizeof(SurfaceProperties));
+	UpdateConstantBuffer(m_MaterialSurfaceBuffer);
+	m_Context->PSSetConstantBuffers(4, 1, &m_MaterialSurfaceBuffer->gpu.data);
 }
 
 
@@ -770,42 +782,7 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, bool NoPixelShader
 	{
 		for(auto& mesh : model.GetMeshes())
 		{
-			XMMATRIX transform = model.GetTransformMatrix();
-
-			UINT stride = sizeof(Vertex);
-			UINT offset = 0;
-
-			CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
-			matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
-			UpdateConstantBuffer(m_TransformBuffer);
-
-			m_Context->IASetVertexBuffers(0, 1, &mesh->geometry->vertexBuffer.data, &stride, &offset);
-			m_Context->IASetIndexBuffer(mesh->geometry->indexBuffer.data, DXGI_FORMAT_R32_UINT, 0);
-			m_Context->IASetInputLayout(mesh->material->inputLayout);
-			m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-			m_Context->VSSetShader(mesh->material->vertexShader, nullptr, 0);
-			m_Context->VSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
-
-			if(NoPixelShader)
-				m_Context->PSSetShader(nullptr, nullptr, 0);
-
-			else
-			{
-				m_Context->PSSetShader(mesh->material->pixelShader, nullptr, 0);
-				m_Context->PSSetSamplers(0, 1, m_SamplerLinearWrap.GetAddressOf());
-				m_Context->PSSetSamplers(1, 1, m_ShadowSampler.GetAddressOf());
-				m_Context->PSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
-				int i = 0;
-				for(auto& tex : mesh->material->textures)
-				{
-					m_Context->PSSetShaderResources(i, 1, &mesh->material->textures[i]->shaderResourceView);
-					++i;
-				}
-				m_Context->PSSetShaderResources(6, 1, &m_ShadowMap->shaderResourceView);
-			}
-
-			m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
+			DrawMesh(mesh, model.GetTransformMatrix());
 		}
 	}
 

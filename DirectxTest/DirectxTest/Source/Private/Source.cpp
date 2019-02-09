@@ -79,6 +79,8 @@ int WINAPI WinMain(
 		Material* basicMat = renderer->CreateMaterialFromFile("ColorLit");
 		Material* reflectiveMat = renderer->CreateMaterialFromFile("ColorLitReflective");
 		reflectiveMat->textures.push_back(renderer->CreateTextureFromFile("OvercastCubemap"));
+		reflectiveMat->surfaceParameters.specularIntensity = 1.f;
+		reflectiveMat->surfaceParameters.specularExponent = 1250.f;
 
 		Material* rockMat = renderer->CreateMaterialFromFile("Trivial");
 		rockMat->textures.push_back(renderer->CreateTextureFromFile("Rock01_LP_albedo"));
@@ -340,7 +342,7 @@ int WINAPI WinMain(
 		}
 
 		renderer->SetActiveModels(sceneManager->GetComponents<MeshComponent>());
-		renderer->UpdateLightBuffers(sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
+		renderer->UpdateLightBuffers(XMFLOAT3(0.4f, 0.4f, 0.4f), sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
 		renderer->UpdateSceneBuffer(totalTime);
 		renderer->RenderFrame();
 

@@ -1,6 +1,8 @@
 #pragma once
 #include "stdafx.h"
 
+#include "SurfaceParameters.h"
+
 #define POINTLIGHT_MAX 10
 #define SPOTLIGHT_MAX 10
 
@@ -60,9 +62,10 @@ struct LightInfo
 	SpotLight spotLights[SPOTLIGHT_MAX];
 	DirectionalLight directionalLight;
 	DirectionalShadowInfo directionalShadowInfo;
+	DirectX::XMFLOAT3 ambientColor;
 	int pointLightCount;
 	int spotLightCount;
-	DirectX::XMFLOAT2 padding;
+	DirectX::XMFLOAT3 padding;
 };
 
 struct CLightInfoBuffer

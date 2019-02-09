@@ -1,20 +1,9 @@
-#include "Common.hlsl"
+#include "PSIncludes.hlsl"
 
 Texture2D shaderTextures[2] : register(t0);
 Texture2D directionalShadowMap : register(t6);
 SamplerState sampleTypeWrap : register(s0);
 SamplerComparisonState sampleTypeShadows : register(s1);
-
-cbuffer LightInfoBuffer : register(b6)
-{
-    LightInfo lightInfo;
-};
-
-cbuffer SceneInfoBuffer : register(b5)
-{
-    float3 _EyePosition;
-    float _Time;
-};
 
 struct INPUT_PIXEL
 {
@@ -36,12 +25,12 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
 	normalMap = shaderTextures[1].Sample(sampleTypeWrap, pIn.Tex).wyz * 2.f - 1.f;
 	normalMap.z = sqrt(1 - normalMap.x*normalMap.x - normalMap.y * normalMap.y);
 
-    normal = normalMap.x * pIn.tangent + normalMap.y * pIn.binormal + normalMap.z * pIn.NormalWS;
+    normal = surface._normalIntensity * normalMap.x * pIn.tangent + surface._normalIntensity * normalMap.y * pIn.binormal + normalMap.z * pIn.NormalWS;
 	//normal = pIn.NormalWS;
 	normal = normalize(normal);
 
     float3 viewWS = pIn.PosWS - _EyePosition;;
     viewWS = normalize(viewWS);
 
-    return BlinnPhong(normal, pIn.NormalWS, pIn.PosWS, viewWS, textureColor, 0.6f, lightInfo, directionalShadowMap, sampleTypeShadows);
+    return BlinnPhong(surface, normal, textureColor, pIn.NormalWS, pIn.PosWS, viewWS, lightInfo, directionalShadowMap, sampleTypeShadows);
 }

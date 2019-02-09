@@ -5,12 +5,6 @@
 
 static const float PI = 3.14159265f;
 
-struct BlinnPhongSurface
-{
-    float specularBrightness;
-    float specularExponent;
-    float2 padding;
-};
 
 struct PointLight
 {
@@ -53,10 +47,22 @@ struct LightInfo
 	SpotLight spotLights[SPOTLIGHT_MAX];
 	DirectionalLight directionalLight;
     DirectionalShadowInfo directionalShadowInfo;
+    float3 ambientColor;
 	int pointLightCount;
 	int spotLightCount;
-	float2 padding;
+	float3 padding;
 };
+
+struct SurfaceProperties
+{
+    float3 _diffuseColor;
+    float _specularIntensity;
+    float _specularExponent;
+    float _normalIntensity;
+    float _ambientIntensity;
+    float __padding;
+};
+
 
 float samplePCF(float2 uv, float x, float y, float z0, Texture2D shadowMap, SamplerComparisonState samp,  float txlSize)
 {
@@ -83,9 +89,11 @@ float PCFBlur(float2 uv, int samples, float z0, Texture2D shadowMap, SamplerComp
 }
 
 
-float4 BlinnPhong(float3 normal, float3 normalWS, float3 positionWS, float3 viewWS,  float3 textureColor, float ambient, LightInfo info, Texture2D directionalShadowMap, SamplerComparisonState shadowSampler)
+float4 BlinnPhong(SurfaceProperties surface, float3 normal, float3 diffuse, float3 normalWS, float3 positionWS, float3 viewWS, LightInfo info, Texture2D directionalShadowMap, SamplerComparisonState shadowSampler)
 {
     float3 color = float3(0.f, 0.f, 0.f);
+
+    float3 d = diffuse * surface._diffuseColor;
 
     for (int i = 0; i < info.pointLightCount; i++)
     {
@@ -98,9 +106,9 @@ float4 BlinnPhong(float3 normal, float3 normalWS, float3 positionWS, float3 view
         attenuation *= attenuation;
 
         float3 h = normalize(dir - viewWS);
-        float specular = 0.5f * pow(saturate(dot(normal, h)), 16.f);
+        float specular = surface._specularIntensity * pow(saturate(dot(normal, h)), surface._specularExponent);
 
-        color += info.pointLights[i].color * lightRatio * attenuation * (textureColor + specular);
+        color += info.pointLights[i].color * lightRatio * attenuation * (d + specular);
 
     }
 
@@ -121,9 +129,9 @@ float4 BlinnPhong(float3 normal, float3 normalWS, float3 positionWS, float3 view
         sAttenuation *= sAttenuation;
 
         float3 h = normalize(dir - viewWS);
-        float specular = 0.5f * pow(saturate(dot(normal, h)), 16.f);
+        float specular = surface._specularIntensity * pow(saturate(dot(normal, h)), surface._specularExponent);
 
-        color += info.spotLights[i].color * lightRatio * sAttenuation * pAttenuation * (textureColor + specular);
+        color += info.spotLights[i].color * lightRatio * sAttenuation * pAttenuation * (d + specular);
     }
 
 	{
@@ -150,12 +158,13 @@ float4 BlinnPhong(float3 normal, float3 normalWS, float3 positionWS, float3 view
         }
 
         float3 h = normalize(-info.directionalLight.direction -  viewWS);
-        float specular = 0.5f * pow(saturate(dot(normal, h)), 8.f);
+        float specular = surface._specularIntensity * pow(saturate(dot(normal, h)), surface._specularExponent);
 
-        color += info.directionalLight.color * lightRatio * shadowRatio * (textureColor + specular);
+        color += info.directionalLight.color * lightRatio * shadowRatio * (d + specular);
     }
 
-    color = color + textureColor * ambient;
+    color = color + d * info.ambientColor*surface._ambientIntensity;
 
     return float4(color, 1.f);
 }
+

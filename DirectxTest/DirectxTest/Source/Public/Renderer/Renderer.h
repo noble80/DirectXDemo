@@ -35,6 +35,7 @@ class MeshComponent;
 struct Vertex;
 struct D3D11_BUFFER_DESC;
 struct D3D11_SUBRESOURCE_DATA;
+struct SurfaceProperties;
 
 class Renderer
 {
@@ -54,8 +55,9 @@ public:
 	void DrawDebugShape(GeometryBuffer* shape, const DirectX::XMMATRIX& transform);
 	void DrawMesh(const Mesh* mesh, const DirectX::XMMATRIX& transform);
 
-	void UpdateLightBuffers(std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights);
+	void UpdateLightBuffers(DirectX::XMFLOAT3 ambientColor, std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights);
 	void UpdateSceneBuffer(float time);
+	void UpdateMaterialSurfaceBuffer(const SurfaceProperties* prop);
 	void UpdateConstantBuffer(ConstantBuffer* buffer);
 
 	GeometryBuffer* CreateGeometryBuffer(std::string name, std::vector<Vertex>* vertices, std::vector<uint32_t> indices);
@@ -97,6 +99,8 @@ private:
 	ConstantBuffer*										m_LightInfoBuffer;
 	ConstantBuffer*										m_SceneInfoBuffer;
 	ConstantBuffer*										m_TransformBuffer;
+	ConstantBuffer*										m_MaterialSurfaceBuffer;
+
 	CameraComponent*									m_ActiveCamera;
 	std::vector<MeshComponent>*						m_ActiveModels;
 	RenderTexture2D*									m_ShadowMap;

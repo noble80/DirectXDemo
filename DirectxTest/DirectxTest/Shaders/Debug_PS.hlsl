@@ -1,4 +1,4 @@
-#include "Common.hlsl"
+#include "PSIncludes.hlsl"
 
 struct INPUT_PIXEL
 {
