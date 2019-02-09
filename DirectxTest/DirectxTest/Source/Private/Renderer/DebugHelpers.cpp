@@ -16,7 +16,6 @@ GeometryBuffer* DebugHelpers::CreateDebugSphere(Renderer* renderer, int segments
 	GeometryBuffer* sphere = manager->GetResource<GeometryBuffer>("DebugSphere");
 
 	std::vector<Vertex> vertices;
-	Vertex v;
 
 	if(sphere)
 		sphere->Release();
@@ -39,14 +38,14 @@ GeometryBuffer* DebugHelpers::CreateDebugSphere(Renderer* renderer, int segments
 
 	D3D11_BUFFER_DESC bd{};
 	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof(Vertex) * vertices.size();
+	bd.ByteWidth = sizeof(Vertex) * static_cast<UINT>(vertices.size());
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 
 	D3D11_SUBRESOURCE_DATA InitData{};
 	InitData.pSysMem = vertices.data();
 
-	sphere->vertexBuffer.size = vertices.size();
+	sphere->vertexBuffer.size = static_cast<uint32_t>(vertices.size());
 	sphere->vertexBuffer.data = renderer->CreateD3DBuffer(&bd, &InitData);
 
 	DebugSphere = sphere;

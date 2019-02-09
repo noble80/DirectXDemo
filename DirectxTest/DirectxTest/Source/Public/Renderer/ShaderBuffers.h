@@ -7,8 +7,7 @@
 
 struct CSceneInfoBuffer
 {
-	float time;
-	DirectX::XMFLOAT3 padding;
+	DirectX::XMFLOAT4 time;
 };
 
 struct CTransformBuffer

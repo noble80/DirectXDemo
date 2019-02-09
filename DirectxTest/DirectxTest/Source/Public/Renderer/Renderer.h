@@ -30,7 +30,7 @@ class DirectionalLightComponent;
 class PointLightComponent;
 class SpotLightComponent;
 class CameraComponent;
-class ModelComponent;
+class MeshComponent;
 
 struct Vertex;
 struct D3D11_BUFFER_DESC;
@@ -66,19 +66,19 @@ public:
 
 	inline void SetActiveCamera(CameraComponent* camera) { m_ActiveCamera = camera; };
 
-	void RenderSceneToTexture(RenderTexture2D* output, Material* mat);
+	void RenderSceneToTexture(RenderTexture2D* output, bool NoPixelShader = false);
 
 
 	inline ResourceManager* GetResourceManager() { return m_ResourceManager; };
 
-	inline void SetActiveModels(std::vector<ModelComponent>* models) { m_ActiveModels = models; };
+	inline void SetActiveModels(std::vector<MeshComponent>* models) { m_ActiveModels = models; };
 	void SetDirectionalLight(DirectionalLightComponent* light);
 
 private:
 	void RenderShadowMaps();
 	void InitializeDefaultShaders();
 	void InitializeConstantBuffers();
-	void InitializeShadowMaps(int resolution);
+	void InitializeShadowMaps(float resolution);
 	void CreateRasterizerStates();
 
 	Microsoft::WRL::ComPtr<IDXGISwapChain1>				m_Swapchain;		// ptr to swap chain
@@ -97,8 +97,7 @@ private:
 	ConstantBuffer*										m_SceneInfoBuffer;
 	ConstantBuffer*										m_TransformBuffer;
 	CameraComponent*									m_ActiveCamera;
-	std::vector<ModelComponent>*						m_ActiveModels;
-	Material*											m_DepthMaterial;
+	std::vector<MeshComponent>*						m_ActiveModels;
 	RenderTexture2D*									m_ShadowMap;
 	DirectionalLightComponent*							m_DirectionalLight;
 

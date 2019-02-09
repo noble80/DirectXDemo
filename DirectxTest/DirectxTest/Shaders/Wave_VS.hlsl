@@ -7,7 +7,7 @@ cbuffer ObjectBuffer : register(b0)
 
 cbuffer SceneInfoBuffer : register(b5)
 {
-    float time;
+    float4 time;
 };
 
 struct INPUT_VERTEX
@@ -30,7 +30,7 @@ OUTPUT_VERTEX main( INPUT_VERTEX vIn )
 {
 	OUTPUT_VERTEX output = (OUTPUT_VERTEX)0;
 	float4 Pos = float4(vIn.Pos, 1);
-    float alpha = (sin(time) + 1) / 2.f;
+    float alpha = (sin(time.x) + 1) / 2.f;
     alpha *= (sin(Pos.y * 10.f) + 1) / 2.f;
     alpha *= (sin(Pos.z * 10.f) + 1) / 2.f;
     alpha *= (sin(Pos.x * 10.f) + 1) / 2.f;

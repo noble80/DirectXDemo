@@ -3,6 +3,8 @@
 #define POINTLIGHT_MAX 10
 #define SPOTLIGHT_MAX 10
 
+static const float PI = 3.14159265f;
+
 struct PointLight
 {
 	float3 position;

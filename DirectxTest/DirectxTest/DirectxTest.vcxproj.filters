@@ -3,20 +3,22 @@
   <ItemGroup>
     <FxCompile Include="Shaders\Trivial_PS.hlsl" />
     <FxCompile Include="Shaders\Trivial_VS.hlsl" />
-    <FxCompile Include="Shaders\Depth_VS.hlsl" />
-    <FxCompile Include="Shaders\ColorLit_PS.hlsl" />
-    <FxCompile Include="Shaders\ColorLit_VS.hlsl" />
     <FxCompile Include="Shaders\Debug_VS.hlsl" />
     <FxCompile Include="Shaders\Debug_PS.hlsl" />
     <FxCompile Include="Shaders\Wave_PS.hlsl" />
     <FxCompile Include="Shaders\Wave_VS.hlsl" />
+    <FxCompile Include="Shaders\ColorLitAO_PS.hlsl" />
+    <FxCompile Include="Shaders\ColorLitAO_VS.hlsl" />
+    <FxCompile Include="Shaders\ColorLit_PS.hlsl" />
+    <FxCompile Include="Shaders\ColorLit_VS.hlsl" />
+    <FxCompile Include="Shaders\Flag_PS.hlsl" />
+    <FxCompile Include="Shaders\Flag_VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />
     <ClCompile Include="Source\Private\Engine\Component.cpp" />
     <ClCompile Include="Source\Private\Engine\ComponentManager.cpp" />
     <ClCompile Include="Source\Private\Engine\Entity.cpp" />
-    <ClCompile Include="Source\Private\Engine\ModelComponent.cpp" />
     <ClCompile Include="Source\Private\Engine\SceneManager.cpp" />
     <ClCompile Include="Source\Private\Engine\Texture.cpp" />
     <ClCompile Include="Source\Private\Engine\TransformComponent.cpp" />
@@ -46,13 +48,13 @@
     <ClCompile Include="Source\Private\Engine\DirectionalLightComponent.cpp" />
     <ClCompile Include="Source\Private\Renderer\DebugHelpers.cpp" />
     <ClCompile Include="Source\Private\Importer\MeshImporter.cpp" />
+    <ClCompile Include="Source\Private\Engine\MeshComponent.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Public\Engine\CameraComponent.h" />
     <ClInclude Include="Source\Public\Engine\Component.h" />
     <ClInclude Include="Source\Public\Engine\ComponentManager.h" />
     <ClInclude Include="Source\Public\Engine\Entity.h" />
-    <ClInclude Include="Source\Public\Engine\ModelComponent.h" />
     <ClInclude Include="Source\Public\Engine\SceneManager.h" />
     <ClInclude Include="Source\Public\Engine\Texture.h" />
     <ClInclude Include="Source\Public\Engine\TransformComponent.h" />
@@ -88,5 +90,6 @@
     <ClInclude Include="Source\Public\Renderer\DebugHelpers.h" />
     <ClInclude Include="Source\Public\Importer\ComplexOBJ.h" />
     <ClInclude Include="Source\Public\Importer\MeshImporter.h" />
+    <ClInclude Include="Source\Public\Engine\MeshComponent.h" />
   </ItemGroup>
 </Project>

@@ -23,14 +23,14 @@
 #include "Engine\DirectionalLightComponent.h"
 #include "Engine\SpotLightComponent.h"
 #include "Engine\PointLightComponent.h"
-#include "Engine\ModelComponent.h"
+#include "Engine\MeshComponent.h"
 #include "Engine\CameraComponent.h"
 
 #include "DebugMemory.h"
 #include "Engine\Log.h"
 
 #include "Renderer\DebugHelpers.h"
-
+#include <iostream>
 #include <d3d11_1.h>
 #include <d3d11.h>
 
@@ -66,9 +66,8 @@ int WINAPI WinMain(
 
 	//Load up meshes
 	{
-		std::string meshNames[] = {"Sphere01", "CornellBox01", "Rock01"};
-		float scales[] = {1.f, 1.f, 40.f};
-		int n = ARRAYSIZE(scales);
+		std::string meshNames[] = {"Sphere01", "CornellBox01", "Rock01", "Flag01_1", "Flag01_2"};
+		int n = ARRAYSIZE(meshNames);
 		for(int i = 0; i < n; ++i)
 		{
 			MeshImporter::Mesh mesh;
@@ -77,13 +76,16 @@ int WINAPI WinMain(
 			renderer->CreateGeometryBuffer(mesh.name, &mesh.vertices, mesh.indices);
 		}
 		//Create materials
+		Material* basicMat = renderer->CreateMaterialFromFile("ColorLit");
+
 		Material* rockMat = renderer->CreateMaterialFromFile("Trivial");
 		rockMat->textures.push_back(renderer->CreateTextureFromFile("Rock01_LP_albedo"));
 		rockMat->textures.push_back(renderer->CreateTextureFromFile("Rock01_LP_normal"));
 
-		Material* cornellBoxMat = renderer->CreateMaterialFromFile("ColorLit");
+		Material* cornellBoxMat = renderer->CreateMaterialFromFile("ColorLitAO");
 		cornellBoxMat->textures.push_back(renderer->CreateTextureFromFile("CornellBoxAO"));
 
+		// Create meshes
 		Mesh* rock = renderer->GetResourceManager()->CreateResource<Mesh>("Rock01");
 		rock->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Rock01");
 		rock->material = rockMat;
@@ -100,6 +102,13 @@ int WINAPI WinMain(
 		waveSphere->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01");
 		waveSphere->material = renderer->CreateMaterialFromFile("Wave");
 
+		Mesh* flagPole = renderer->GetResourceManager()->CreateResource<Mesh>("FlagPole");
+		flagPole->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Flag01_2");
+		flagPole->material = basicMat;
+
+		Mesh* flagTop = renderer->GetResourceManager()->CreateResource<Mesh>("FlagTop");
+		flagTop->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Flag01_1");
+		flagTop->material = renderer->CreateMaterialFromFile("Flag");
 
 		{
 			MeshImporter::Mesh imesh = MeshImporter::WeakImportModelFromOBJ();
@@ -127,7 +136,7 @@ int WINAPI WinMain(
 		transform->SetPosition(XMVectorSet(0.f, 0.f, 0.f, 1.f));
 		transform->SetScale(XMVectorSet(0.025f, 0.025f, 0.025f, 1.f));
 
-		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
+		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Rock01"));
 
 	}
@@ -137,8 +146,20 @@ int WINAPI WinMain(
 		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
 		transform->SetPosition(XMVectorSet(0.f, 0.f, 0.f, 1.f));
 
-		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
+		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("CornellBox01"));
+	}
+
+	{
+		Entity* entity = sceneManager->CreateEntity("Flag01");
+		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
+		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
+		transform->SetPosition(XMVectorSet(0.f, 10.f, 5.f, 1.f));
+		transform->SetScale(XMVectorSet(2.f, 2.f, 2.f, 1.f));
+
+		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
+		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("FlagPole"));
+		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("FlagTop"));
 	}
 
 	{
@@ -147,9 +168,10 @@ int WINAPI WinMain(
 		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
 		transform->SetPosition(XMVectorSet(4.f, 0.f, 3.f, 1.f));
 
-		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
+		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Sphere01"));
 	}
+
 
 	{
 		Entity* entity = sceneManager->CreateEntity("ComplexOBJ");
@@ -157,7 +179,7 @@ int WINAPI WinMain(
 		transform->SetRotation(Quaternion::FromAngles(0.f, -60.f, 0.f));
 		transform->SetPosition(XMVectorSet(-5.f, 0.2f, 3.f, 1.f));
 
-		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
+		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("ComplexMeshOBJ"));
 	}
 
@@ -167,7 +189,7 @@ int WINAPI WinMain(
 		transform->SetRotation(Quaternion::FromAngles(0.f, 180.f, 0.f));
 		transform->SetPosition(XMVectorSet(0.f, 0.f, 4.f, 1.f));
 
-		ModelComponent* model = sceneManager->CreateComponent<ModelComponent>(entity);
+		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("WaveSphere01"));
 	}
 
@@ -225,12 +247,16 @@ int WINAPI WinMain(
 	DebugHelpers::DebugMat = renderer->CreateMaterialFromFile("Debug");
 #endif
 
+	AllocConsole();
+	freopen("CONOUT$", "w", stdout);
+	freopen("CONOUT$", "w", stderr);
+
 	// message loop
 	while(window->Update())
 	{
 		timer.Signal();
 		float deltaTime = static_cast<float>(timer.Delta());
-		float totalTime = static_cast<float>(timer.TotalTime());
+		float totalTime = static_cast<float>(timer.TotalTimeExact());
 
 		static DWORD frameCount = 0; ++frameCount;
 		static DWORD framesPast = frameCount;
@@ -311,7 +337,7 @@ int WINAPI WinMain(
 			transform->SetRotation(rot);
 		}
 
-		renderer->SetActiveModels(sceneManager->GetComponents<ModelComponent>());
+		renderer->SetActiveModels(sceneManager->GetComponents<MeshComponent>());
 		renderer->UpdateLightBuffers(sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
 		renderer->UpdateSceneBuffer(totalTime);
 		renderer->RenderFrame();

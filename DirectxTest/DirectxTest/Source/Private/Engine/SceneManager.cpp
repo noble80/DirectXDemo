@@ -2,7 +2,7 @@
 #include "Engine\SceneManager.h"
 
 #include "Engine\CameraComponent.h"
-#include "Engine\ModelComponent.h"
+#include "Engine\MeshComponent.h"
 #include "Engine\TransformComponent.h"
 #include "Engine\DirectionalLightComponent.h"
 #include "Engine\PointLightComponent.h"
@@ -11,7 +11,7 @@
 SceneManager::SceneManager()
 {
 	m_ComponentManager.CreateComponentContainer<TransformComponent>(100);
-	m_ComponentManager.CreateComponentContainer<ModelComponent>(100);
+	m_ComponentManager.CreateComponentContainer<MeshComponent>(100);
 	m_ComponentManager.CreateComponentContainer<DirectionalLightComponent>(4);
 	m_ComponentManager.CreateComponentContainer<PointLightComponent>(10);
 	m_ComponentManager.CreateComponentContainer<SpotLightComponent>(10);

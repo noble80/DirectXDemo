@@ -11,7 +11,7 @@
 #include "Renderer\Material.h"
 #include "Renderer\Mesh.h"
 
-#include "Engine/ModelComponent.h"
+#include "Engine\MeshComponent.h"
 #include "Engine/DirectionalLightComponent.h"
 #include "Engine/SpotLightComponent.h"
 #include "Engine/PointLightComponent.h"
@@ -239,7 +239,7 @@ bool Renderer::Initialize(Window * window)
 		if(FAILED(hr))
 			return hr;
 
-	// Create the sample state clamp
+		// Create the sample state clamp
 		float black[] = {0.f, 0.f, 0.f, 1.f};
 		CD3D11_SAMPLER_DESC SamDescShad(D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
 			D3D11_TEXTURE_ADDRESS_BORDER,
@@ -352,8 +352,6 @@ bool Renderer::PresentFrame()
 
 GeometryBuffer* Renderer::CreateGeometryBuffer(std::string name, std::vector<Vertex> *vertices, std::vector<uint32_t> indices)
 {
-	HRESULT hr;
-
 	GeometryBuffer* buffer = GetResourceManager()->CreateResource<GeometryBuffer>(name);
 
 	if(buffer)
@@ -543,12 +541,11 @@ void Renderer::RenderShadowMaps()
 	CLightInfoBuffer* buffer = static_cast<CLightInfoBuffer*>(m_LightInfoBuffer->cpu);
 	m_ViewProjection = m_DirectionalLight->GetLightSpaceMatrix(m_ActiveCamera);
 	m_Context->RSSetState(m_ShadowsRasterizerState.Get());
-	RenderSceneToTexture(m_ShadowMap, m_DepthMaterial);
+	RenderSceneToTexture(m_ShadowMap, true);
 }
 
 void Renderer::InitializeDefaultShaders()
 {
-	m_DepthMaterial = CreateMaterialFromFile("Depth");
 }
 
 void Renderer::InitializeConstantBuffers()
@@ -558,7 +555,7 @@ void Renderer::InitializeConstantBuffers()
 	m_SceneInfoBuffer = CreateConstantBuffer(sizeof(CSceneInfoBuffer), "SceneInfoBuffer");
 }
 
-void Renderer::InitializeShadowMaps(int resolution)
+void Renderer::InitializeShadowMaps(float resolution)
 {
 	HRESULT hr;
 	// Create depth stencil texture
@@ -568,8 +565,8 @@ void Renderer::InitializeShadowMaps(int resolution)
 	{
 		D3D11_TEXTURE2D_DESC textureDesc{};
 		// Setup the render target texture description.
-		textureDesc.Width = resolution;
-		textureDesc.Height = resolution;
+		textureDesc.Width = (UINT)resolution;
+		textureDesc.Height = (UINT)resolution;
 		textureDesc.MipLevels = 1;
 		textureDesc.ArraySize = 1;
 		textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -701,9 +698,9 @@ void Renderer::UpdateLightBuffers(std::vector<PointLightComponent>* pointLights,
 void Renderer::UpdateSceneBuffer(float time)
 {
 	CSceneInfoBuffer* buffer = static_cast<CSceneInfoBuffer*>(m_SceneInfoBuffer->cpu);
-	buffer->time = time;
+	buffer->time = XMFLOAT4(time, time, time, time);
 	UpdateConstantBuffer(m_SceneInfoBuffer);
-	m_Context->VSSetConstantBuffers(5, 1, &m_LightInfoBuffer->gpu.data);
+	m_Context->VSSetConstantBuffers(5, 1, &m_SceneInfoBuffer->gpu.data);
 }
 
 
@@ -740,7 +737,7 @@ ConstantBuffer * Renderer::CreateConstantBuffer(uint32_t size, std::string name)
 	return nullptr;
 }
 
-void Renderer::RenderSceneToTexture(RenderTexture2D * output, Material * mat)
+void Renderer::RenderSceneToTexture(RenderTexture2D * output, bool NoPixelShader)
 {
 	float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 	m_Context->ClearDepthStencilView(output->depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
@@ -763,12 +760,28 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, Material * mat)
 
 			m_Context->IASetVertexBuffers(0, 1, &mesh->geometry->vertexBuffer.data, &stride, &offset);
 			m_Context->IASetIndexBuffer(mesh->geometry->indexBuffer.data, DXGI_FORMAT_R32_UINT, 0);
-			m_Context->IASetInputLayout(mat->inputLayout);
+			m_Context->IASetInputLayout(mesh->material->inputLayout);
 			m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-			m_Context->VSSetShader(mat->vertexShader, nullptr, 0);
+			m_Context->VSSetShader(mesh->material->vertexShader, nullptr, 0);
 			m_Context->VSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
-			m_Context->PSSetShader(mat->pixelShader, nullptr, 0);
+
+			if(NoPixelShader)
+				m_Context->PSSetShader(nullptr, nullptr, 0);
+
+			else
+			{
+				m_Context->PSSetShader(mesh->material->pixelShader, nullptr, 0);
+				m_Context->PSSetSamplers(0, 1, m_SamplerLinearWrap.GetAddressOf());
+				m_Context->PSSetSamplers(1, 1, m_ShadowSampler.GetAddressOf());
+				int i = 0;
+				for(auto& tex : mesh->material->textures)
+				{
+					m_Context->PSSetShaderResources(i, 1, &mesh->material->textures[i]->shaderResourceView);
+					++i;
+				}
+				m_Context->PSSetShaderResources(6, 1, &m_ShadowMap->shaderResourceView);
+			}
 
 			m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
 		}

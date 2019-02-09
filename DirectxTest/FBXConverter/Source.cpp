@@ -22,13 +22,13 @@ std::string getExtension(string& path)
 	return path.substr(i + 1, path.length() - i);
 }
 
-void AppendToNameAndExtension(string& path, const string& app, const string& ext)
+void AppendAndReplaceExtension(string& path, string app)
 {
 
 	string::size_type s = path.rfind('\\', path.length());
 	string::size_type i = path.rfind('.', path.length());
 
-	string name = path.substr(s + 1, i - s - 1);
+	string name = path.substr(s + 1, i - s - 1) + app;
 
 	if(i != string::npos)
 	{
@@ -78,7 +78,9 @@ int main(int argc, const char * argv[])
 			std::string newFileName = filePath;
 
 			if(fbxmeshes.size() > 1)
-				AppendToNameAndExtension(newFileName, "_" + j, "mesh");
+			{
+				AppendAndReplaceExtension(newFileName, "_" + to_string(j) + ".mesh");
+			}
 			else
 				ReplaceExtension(newFileName, "mesh");
 
@@ -87,7 +89,7 @@ int main(int argc, const char * argv[])
 
 			if(myfile.is_open())
 			{
-				uint32_t vertCount =  static_cast<uint32_t>(fbxmesh.vertices.size());
+				uint32_t vertCount = static_cast<uint32_t>(fbxmesh.vertices.size());
 				uint32_t indexCount = static_cast<uint32_t>(fbxmesh.indices.size());
 				myfile.write((char*)&vertCount, sizeof(uint32_t));
 				myfile.write((char*)&indexCount, sizeof(uint32_t));
