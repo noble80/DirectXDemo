@@ -10,6 +10,12 @@ cbuffer LightInfoBuffer : register(b6)
     LightInfo lightInfo;
 };
 
+cbuffer SceneInfoBuffer : register(b5)
+{
+    float3 _EyePosition;
+    float _Time;
+};
+
 struct INPUT_PIXEL
 {
     float4 Pos : SV_POSITION;
@@ -34,5 +40,8 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
 	//normal = pIn.NormalWS;
 	normal = normalize(normal);
 
-    return bdrf(normal, pIn.NormalWS, pIn.PosWS, textureColor, 0.6f, lightInfo, directionalShadowMap, sampleTypeShadows);
+    float3 viewWS = pIn.PosWS - _EyePosition;;
+    viewWS = normalize(viewWS);
+
+    return BlinnPhong(normal, pIn.NormalWS, pIn.PosWS, viewWS, textureColor, 0.6f, lightInfo, directionalShadowMap, sampleTypeShadows);
 }

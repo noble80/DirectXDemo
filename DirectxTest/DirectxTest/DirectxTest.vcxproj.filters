@@ -13,6 +13,8 @@
     <FxCompile Include="Shaders\ColorLit_VS.hlsl" />
     <FxCompile Include="Shaders\Flag_PS.hlsl" />
     <FxCompile Include="Shaders\Flag_VS.hlsl" />
+    <FxCompile Include="Shaders\ColorLitReflective_PS.hlsl" />
+    <FxCompile Include="Shaders\ColorLitReflective_VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />

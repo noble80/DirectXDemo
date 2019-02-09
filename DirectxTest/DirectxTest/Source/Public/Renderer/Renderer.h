@@ -88,6 +88,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilView>		m_DepthStencilView;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_ShadowSampler;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_SamplerLinearWrap;
+	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_SamplerLinearClamp;
 
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>		m_SceneRasterizerState;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>		m_ShadowsRasterizerState;

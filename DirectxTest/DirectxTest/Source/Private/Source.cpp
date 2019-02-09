@@ -77,6 +77,8 @@ int WINAPI WinMain(
 		}
 		//Create materials
 		Material* basicMat = renderer->CreateMaterialFromFile("ColorLit");
+		Material* reflectiveMat = renderer->CreateMaterialFromFile("ColorLitReflective");
+		reflectiveMat->textures.push_back(renderer->CreateTextureFromFile("OvercastCubemap"));
 
 		Material* rockMat = renderer->CreateMaterialFromFile("Trivial");
 		rockMat->textures.push_back(renderer->CreateTextureFromFile("Rock01_LP_albedo"));
@@ -96,7 +98,7 @@ int WINAPI WinMain(
 
 		Mesh* sphere = renderer->GetResourceManager()->CreateResource<Mesh>("Sphere01");
 		sphere->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01");
-		sphere->material = renderer->GetResourceManager()->GetResource<Material>("Trivial");
+		sphere->material = reflectiveMat;
 
 		Mesh* waveSphere = renderer->GetResourceManager()->CreateResource<Mesh>("WaveSphere01");
 		waveSphere->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01");
@@ -166,7 +168,7 @@ int WINAPI WinMain(
 		Entity* entity = sceneManager->CreateEntity("Sphere01");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
 		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
-		transform->SetPosition(XMVectorSet(4.f, 0.f, 3.f, 1.f));
+		transform->SetPosition(XMVectorSet(4.f, 10.f, 3.f, 1.f));
 
 		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Sphere01"));

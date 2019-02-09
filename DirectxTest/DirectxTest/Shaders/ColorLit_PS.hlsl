@@ -4,6 +4,12 @@ Texture2D directionalShadowMap : register(t6);
 SamplerState sampleTypeWrap : register(s0);
 SamplerComparisonState sampleTypeShadows : register(s1);
 
+cbuffer SceneInfoBuffer : register(b5)
+{
+    float3 _EyePosition;
+    float _Time;
+};
+
 cbuffer LightInfoBuffer : register(b6)
 {
     LightInfo lightInfo;
@@ -27,6 +33,9 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
 	normal = pIn.NormalWS;
 	normal = normalize(normal);
 
+    float3 viewWS = pIn.PosWS - _EyePosition;;
+    viewWS = normalize(viewWS);
+
 	//return float4(1.0f, 1.0f, 1.0f, 1.0f);
-    return bdrf(normal, pIn.NormalWS, pIn.PosWS, textureColor, 0.6f, lightInfo, directionalShadowMap, sampleTypeShadows);
+    return BlinnPhong(normal, pIn.NormalWS, pIn.PosWS, viewWS, textureColor, 0.6f, lightInfo, directionalShadowMap, sampleTypeShadows);
 }

@@ -5,6 +5,13 @@
 
 static const float PI = 3.14159265f;
 
+struct BlinnPhongSurface
+{
+    float specularBrightness;
+    float specularExponent;
+    float2 padding;
+};
+
 struct PointLight
 {
 	float3 position;
@@ -75,9 +82,10 @@ float PCFBlur(float2 uv, int samples, float z0, Texture2D shadowMap, SamplerComp
 	return output;
 }
 
-float4 bdrf(float3 normal, float3 normalWS, float3 positionWS, float3 textureColor, float ambient, LightInfo info, Texture2D directionalShadowMap, SamplerComparisonState shadowSampler)
+
+float4 BlinnPhong(float3 normal, float3 normalWS, float3 positionWS, float3 viewWS,  float3 textureColor, float ambient, LightInfo info, Texture2D directionalShadowMap, SamplerComparisonState shadowSampler)
 {
-    float3 output = float3(0.f, 0.f, 0.f);
+    float3 color = float3(0.f, 0.f, 0.f);
 
     for (int i = 0; i < info.pointLightCount; i++)
     {
@@ -88,7 +96,12 @@ float4 bdrf(float3 normal, float3 normalWS, float3 positionWS, float3 textureCol
         float lightRatio = saturate(dot(normal, dir));
         float attenuation = saturate(1.0f - dist * dist / (radius * radius));
         attenuation *= attenuation;
-        output += info.pointLights[i].color * lightRatio * attenuation;
+
+        float3 h = normalize(dir - viewWS);
+        float specular = 0.5f * pow(saturate(dot(normal, h)), 16.f);
+
+        color += info.pointLights[i].color * lightRatio * attenuation * (textureColor + specular);
+
     }
 
     for (i = 0; i < info.spotLightCount; i++)
@@ -107,7 +120,10 @@ float4 bdrf(float3 normal, float3 normalWS, float3 positionWS, float3 textureCol
         float sAttenuation = saturate((dot(dir, -info.spotLights[i].direction) - outerCone) / (innerCone - outerCone));
         sAttenuation *= sAttenuation;
 
-        output += info.spotLights[i].color * lightRatio * sAttenuation * pAttenuation;
+        float3 h = normalize(dir - viewWS);
+        float specular = 0.5f * pow(saturate(dot(normal, h)), 16.f);
+
+        color += info.spotLights[i].color * lightRatio * sAttenuation * pAttenuation * (textureColor + specular);
     }
 
 	{
@@ -133,10 +149,13 @@ float4 bdrf(float3 normal, float3 normalWS, float3 positionWS, float3 textureCol
             shadowRatio = PCFBlur(shadowCoords, 2, z, directionalShadowMap, shadowSampler, txlSize);
         }
 
-        output += info.directionalLight.color * lightRatio * shadowRatio;
+        float3 h = normalize(-info.directionalLight.direction -  viewWS);
+        float specular = 0.5f * pow(saturate(dot(normal, h)), 8.f);
+
+        color += info.directionalLight.color * lightRatio * shadowRatio * (textureColor + specular);
     }
 
-    output = output * textureColor + textureColor * ambient;
+    color = color + textureColor * ambient;
 
-    return float4(output, 1.f);
+    return float4(color, 1.f);
 }

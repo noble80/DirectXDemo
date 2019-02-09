@@ -239,6 +239,24 @@ bool Renderer::Initialize(Window * window)
 		if(FAILED(hr))
 			return hr;
 
+		sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.MipLODBias = 0.0f;
+		sampDesc.MaxAnisotropy = 1;
+		sampDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+		sampDesc.BorderColor[0] = 0;
+		sampDesc.BorderColor[1] = 0;
+		sampDesc.BorderColor[2] = 0;
+		sampDesc.BorderColor[3] = 0;
+		sampDesc.MinLOD = 0;
+		sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+		hr = m_Device->CreateSamplerState(&sampDesc, &m_SamplerLinearClamp);
+		if(FAILED(hr))
+			return hr;
+
 		// Create the sample state clamp
 		float black[] = {0.f, 0.f, 0.f, 1.f};
 		CD3D11_SAMPLER_DESC SamDescShad(D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
@@ -516,6 +534,7 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 	m_Context->PSSetShader(mesh->material->pixelShader, nullptr, 0);
 	m_Context->PSSetSamplers(0, 1, m_SamplerLinearWrap.GetAddressOf());
 	m_Context->PSSetSamplers(1, 1, m_ShadowSampler.GetAddressOf());
+	m_Context->PSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
 	int i = 0;
 	for(auto& tex : mesh->material->textures)
 	{
@@ -698,9 +717,11 @@ void Renderer::UpdateLightBuffers(std::vector<PointLightComponent>* pointLights,
 void Renderer::UpdateSceneBuffer(float time)
 {
 	CSceneInfoBuffer* buffer = static_cast<CSceneInfoBuffer*>(m_SceneInfoBuffer->cpu);
-	buffer->time = XMFLOAT4(time, time, time, time);
+	XMStoreFloat3(&buffer->eyePosition, m_ActiveCamera->GetCameraPosition());
+	buffer->time = time;
 	UpdateConstantBuffer(m_SceneInfoBuffer);
 	m_Context->VSSetConstantBuffers(5, 1, &m_SceneInfoBuffer->gpu.data);
+	m_Context->PSSetConstantBuffers(5, 1, &m_SceneInfoBuffer->gpu.data);
 }
 
 
@@ -774,6 +795,7 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, bool NoPixelShader
 				m_Context->PSSetShader(mesh->material->pixelShader, nullptr, 0);
 				m_Context->PSSetSamplers(0, 1, m_SamplerLinearWrap.GetAddressOf());
 				m_Context->PSSetSamplers(1, 1, m_ShadowSampler.GetAddressOf());
+				m_Context->PSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
 				int i = 0;
 				for(auto& tex : mesh->material->textures)
 				{

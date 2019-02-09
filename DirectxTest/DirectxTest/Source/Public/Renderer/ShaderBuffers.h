@@ -7,7 +7,8 @@
 
 struct CSceneInfoBuffer
 {
-	DirectX::XMFLOAT4 time;
+	DirectX::XMFLOAT3 eyePosition;
+	float time;
 };
 
 struct CTransformBuffer
