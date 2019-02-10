@@ -12,9 +12,9 @@ ResourceManager::~ResourceManager()
 {
 }
 
-bool ResourceManager::RemoveResource(Resource* res, std::string name)
+bool ResourceManager::RemoveResource(Resource* res)
 {
-	ResourceID ID(&typeid(*res), name);
+	ResourceID ID(&typeid(*res), res->id.name);
 	auto it = m_Resources.find(ID);
 	if(it == m_Resources.end())
 		return false;

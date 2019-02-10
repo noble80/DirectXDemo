@@ -18,6 +18,7 @@
 #include "Renderer\Mesh.h"
 #include "Renderer\ShaderBuffers.h"
 #include "Importer\MeshImporter.h"
+#include "Renderer\ShaderContainers.h"
 
 #include "Engine\TransformComponent.h"
 #include "Engine\DirectionalLightComponent.h"
@@ -76,18 +77,50 @@ int WINAPI WinMain(
 			renderer->CreateGeometryBuffer(mesh.name, &mesh.vertices, mesh.indices);
 		}
 		//Create materials
-		Material* basicMat = renderer->CreateMaterialFromFile("ColorLit");
-		Material* reflectiveMat = renderer->CreateMaterialFromFile("ColorLitReflective");
-		reflectiveMat->textures.push_back(renderer->CreateTextureFromFile("OvercastCubemap"));
+		VertexShader* defaultVS = renderer->CreateVertexShader("Default");
+		PixelShader* defaultPS = renderer->CreatePixelShader("BlinnPhong");
+
+		Material* simpleColorMat = renderer->CreateMaterial("SimpleColor");
+		simpleColorMat->vertexShader = defaultVS;
+		simpleColorMat->pixelShader = defaultPS;
+		simpleColorMat->surfaceParameters.diffuseColor = XMFLOAT3(0.5, 0.5f, 0.5f);
+
+
+		Material* reflectiveMat = renderer->CreateMaterial("ReflectiveColor");
+		reflectiveMat->vertexShader = defaultVS;
+		reflectiveMat->pixelShader = defaultPS;
+		reflectiveMat->reflectionMap = renderer->CreateTextureFromFile("IBLTestEnvHDR");
+		reflectiveMat->surfaceParameters.diffuseColor = XMFLOAT3(0.15f, 0.15f, 0.15f);
 		reflectiveMat->surfaceParameters.specularIntensity = 1.f;
-		reflectiveMat->surfaceParameters.specularExponent = 1250.f;
+		reflectiveMat->surfaceParameters.glossiness = 1.f;
+		reflectiveMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_REFLECTIONS;
 
-		Material* rockMat = renderer->CreateMaterialFromFile("Trivial");
-		rockMat->textures.push_back(renderer->CreateTextureFromFile("Rock01_LP_albedo"));
-		rockMat->textures.push_back(renderer->CreateTextureFromFile("Rock01_LP_normal"));
+		Material* cornellBoxMat = renderer->CreateMaterial("CornellBox");
+		cornellBoxMat->vertexShader = defaultVS;
+		cornellBoxMat->pixelShader = defaultPS;
+		cornellBoxMat->AOMap = renderer->CreateTextureFromFile("CornellBoxAO");
+		cornellBoxMat->reflectionMap = reflectiveMat->reflectionMap;
+		cornellBoxMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_AO_MAP | SURFACE_FLAG_HAS_REFLECTIONS;
+		cornellBoxMat->surfaceParameters.diffuseColor = XMFLOAT3(0.6, 0.65f, 0.8f);
+		cornellBoxMat->surfaceParameters.specularIntensity = 0.4f;
+		cornellBoxMat->surfaceParameters.glossiness = 0.58f;
 
-		Material* cornellBoxMat = renderer->CreateMaterialFromFile("ColorLitAO");
-		cornellBoxMat->textures.push_back(renderer->CreateTextureFromFile("CornellBoxAO"));
+		Material* rockMat = renderer->CreateMaterial("Rock01");
+		rockMat->vertexShader = defaultVS;
+		rockMat->pixelShader = defaultPS;
+		rockMat->diffuseMap = renderer->CreateTextureFromFile("Rock01_LP_albedo");
+		rockMat->normalMap = renderer->CreateTextureFromFile("Rock01_LP_normal");
+		rockMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP | SURFACE_FLAG_HAS_NORMAL_MAP;
+		rockMat->surfaceParameters.specularIntensity = 0.1f;
+		rockMat->surfaceParameters.glossiness = 0.2;
+
+		Material* waveMat = renderer->CreateMaterial("Wave");
+		waveMat->vertexShader = renderer->CreateVertexShader("Wave");
+		waveMat->pixelShader = defaultPS;
+
+		Material* flagMat = renderer->CreateMaterial("Flag");
+		flagMat->vertexShader = renderer->CreateVertexShader("Flag");
+		flagMat->pixelShader = defaultPS;
 
 		// Create meshes
 		Mesh* rock = renderer->GetResourceManager()->CreateResource<Mesh>("Rock01");
@@ -104,15 +137,15 @@ int WINAPI WinMain(
 
 		Mesh* waveSphere = renderer->GetResourceManager()->CreateResource<Mesh>("WaveSphere01");
 		waveSphere->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01");
-		waveSphere->material = renderer->CreateMaterialFromFile("Wave");
+		waveSphere->material = waveMat;
 
 		Mesh* flagPole = renderer->GetResourceManager()->CreateResource<Mesh>("FlagPole");
 		flagPole->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Flag01_2");
-		flagPole->material = basicMat;
+		flagPole->material = simpleColorMat;
 
 		Mesh* flagTop = renderer->GetResourceManager()->CreateResource<Mesh>("FlagTop");
 		flagTop->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Flag01_1");
-		flagTop->material = renderer->CreateMaterialFromFile("Flag");
+		flagTop->material = flagMat;
 
 		{
 			MeshImporter::Mesh imesh = MeshImporter::WeakImportModelFromOBJ();
@@ -137,7 +170,7 @@ int WINAPI WinMain(
 		Entity* entity = sceneManager->CreateEntity("Rock01");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
 		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
-		transform->SetPosition(XMVectorSet(0.f, 0.f, 0.f, 1.f));
+		transform->SetPosition(XMVectorSet(0.f, 1.5f, 0.f, 1.f));
 		transform->SetScale(XMVectorSet(0.025f, 0.025f, 0.025f, 1.f));
 
 		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
@@ -248,7 +281,9 @@ int WINAPI WinMain(
 	// Debug stuff
 #ifdef _DEBUG
 	DebugHelpers::CreateDebugSphere(renderer, 20);
-	DebugHelpers::DebugMat = renderer->CreateMaterialFromFile("Debug");
+	DebugHelpers::DebugMat = renderer->CreateMaterial("Debug");
+	DebugHelpers::DebugMat->vertexShader = renderer->GetResourceManager()->GetResource<VertexShader>("Default");
+	DebugHelpers::DebugMat->pixelShader = renderer->CreatePixelShader("Debug");
 #endif
 
 	AllocConsole();

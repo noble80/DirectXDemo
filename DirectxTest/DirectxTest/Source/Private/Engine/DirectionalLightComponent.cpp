@@ -16,7 +16,7 @@ DirectionalLightComponent::DirectionalLightComponent()
 	SetShadowDistance(100.f);
 	SetShadowResolution(2048);
 	SetShadowNearClip(0.01f);
-	SetShadowBias(0.01f);
+	SetShadowBias(0.001f);
 	SetNormalOffset(0.4f);
 }
 
@@ -45,8 +45,8 @@ DirectX::XMMATRIX DirectionalLightComponent::GetViewMatrix() const
 
 DirectX::XMMATRIX DirectionalLightComponent::GetOrtographicProjectionMatrix(XMFLOAT3 min, XMFLOAT3 max) const
 {
-	//min = XMFLOAT3(-30.f, -30.f, 0.f);
-	//max  = XMFLOAT3(30.f, 30.f, 0.f);
+	min = XMFLOAT3(-30.f, -30.f, 0.f);
+	max  = XMFLOAT3(30.f, 30.f, 0.f);
 
 	XMMATRIX proj = XMMatrixOrthographicOffCenterLH(min.x, max.x, min.y, max.y, GetShadowNearClip(), GetShadowDistance());
 	return proj;

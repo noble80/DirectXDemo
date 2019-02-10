@@ -3,9 +3,12 @@
 
 Material::Material()
 {
-	vertexShader = nullptr;
-	pixelShader = nullptr;
-	inputLayout = nullptr;
+	diffuseMap = nullptr;
+	specularMap = nullptr;
+	glossinessMap = nullptr;
+	normalMap = nullptr;
+	AOMap = nullptr;
+	reflectionMap = nullptr;
 }
 
 Material::~Material()
@@ -14,10 +17,5 @@ Material::~Material()
 
 void Material::Release()
 {
-	if(vertexShader)
-		vertexShader->Release();
-	if(pixelShader)
-		pixelShader->Release();
-	if(inputLayout)
-		inputLayout->Release();
+
 }

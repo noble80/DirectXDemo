@@ -37,6 +37,9 @@ struct D3D11_BUFFER_DESC;
 struct D3D11_SUBRESOURCE_DATA;
 struct SurfaceProperties;
 
+struct VertexShader;
+struct PixelShader;
+
 class Renderer
 {
 
@@ -61,7 +64,11 @@ public:
 	void UpdateConstantBuffer(ConstantBuffer* buffer);
 
 	GeometryBuffer* CreateGeometryBuffer(std::string name, std::vector<Vertex>* vertices, std::vector<uint32_t> indices);
-	Material* CreateMaterialFromFile(std::string path);
+
+	VertexShader* CreateVertexShader(std::string path);
+	PixelShader* CreatePixelShader(std::string path);
+	Material* CreateMaterial(std::string name);
+
 	Texture2D* CreateTextureFromFile(std::string path);
 	ConstantBuffer* CreateConstantBuffer(uint32_t size, std::string name);
 	ID3D11Buffer* CreateD3DBuffer(D3D11_BUFFER_DESC* desc, D3D11_SUBRESOURCE_DATA* InitData);
@@ -82,6 +89,7 @@ private:
 	void InitializeConstantBuffers();
 	void InitializeShadowMaps(float resolution);
 	void CreateRasterizerStates();
+	void SetShaderResources(Material* mat);
 
 	Microsoft::WRL::ComPtr<IDXGISwapChain1>				m_Swapchain;		// ptr to swap chain
 	Microsoft::WRL::ComPtr<ID3D11Device1>				m_Device;			// ptr to device

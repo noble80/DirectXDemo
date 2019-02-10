@@ -10,6 +10,7 @@
 #include "Renderer\Texture2D.h"
 #include "Renderer\Material.h"
 #include "Renderer\Mesh.h"
+#include "Renderer\ShaderContainers.h"
 
 #include "Engine\MeshComponent.h"
 #include "Engine/DirectionalLightComponent.h"
@@ -400,73 +401,74 @@ GeometryBuffer* Renderer::CreateGeometryBuffer(std::string name, std::vector<Ver
 		}
 
 		buffer->Release();
-		GetResourceManager()->RemoveResource(buffer, name);
+		GetResourceManager()->RemoveResource(buffer);
 	}
 
 	return nullptr;
 }
 
-Material* Renderer::CreateMaterialFromFile(std::string name)
+VertexShader * Renderer::CreateVertexShader(std::string name)
+{
+	std::vector<std::byte> VSBytes;
+
+	VertexShader* vs = GetResourceManager()->CreateResource<VertexShader>(name);
+	std::string fullPath = "../Shaders/" + name + "_VS.cso";
+	if(vs)
+	{
+		if(ShaderUtilities::LoadShaderFromFile(fullPath, VSBytes))
+		{
+			HRESULT hr = m_Device->CreateVertexShader(VSBytes.data(), VSBytes.size(), nullptr, &vs->d3dShader);
+			if(SUCCEEDED(hr))
+			{
+				D3D11_INPUT_ELEMENT_DESC vLayout[] =
+				{
+						{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+						{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+						{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+						{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+						{ "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+				};
+
+				hr = m_Device->CreateInputLayout(vLayout, ARRAYSIZE(vLayout), VSBytes.data(), VSBytes.size(), &vs->inputLayout);
+
+				if(SUCCEEDED(hr))
+					return vs;
+			}
+		}
+		vs->Release();
+		GetResourceManager()->RemoveResource(vs);
+	}
+
+	return nullptr;
+}
+
+PixelShader * Renderer::CreatePixelShader(std::string name)
+{
+	std::vector<std::byte> PSBytes;
+	PixelShader* ps = GetResourceManager()->CreateResource<PixelShader>(name);
+	std::string fullPath = "../Shaders/" + name + "_PS.cso";
+
+	if(ps)
+	{
+		if(ShaderUtilities::LoadShaderFromFile(fullPath, PSBytes))
+		{
+			HRESULT hr = m_Device->CreatePixelShader(PSBytes.data(), PSBytes.size(), nullptr, &ps->d3dShader);
+			if(SUCCEEDED(hr))
+				return ps;
+		}
+		ps->Release();
+		GetResourceManager()->RemoveResource(ps);
+	}
+	return nullptr;
+}
+
+
+
+Material* Renderer::CreateMaterial(std::string name)
 {
 	Material* mat = GetResourceManager()->CreateResource<Material>(name);
-	std::vector<std::byte> VSBytes;
-	std::vector<std::byte> PSBytes;
 
-	bool foundVS = false;
-	bool foundPS = false;
-
-	std::string fullPath = "../Shaders/" + name + "_PS.cso";
-	if(ShaderUtilities::LoadShaderFromFile(fullPath, PSBytes))
-	{
-		foundPS = true;
-	}
-	else
-		mat->pixelShader = nullptr;
-
-	fullPath = "../Shaders/" + name + "_VS.cso";
-	if(ShaderUtilities::LoadShaderFromFile(fullPath, VSBytes))
-	{
-		foundVS = true;
-	}
-	else
-		mat->vertexShader = nullptr;
-
-	if(foundVS)
-	{
-		HRESULT hr = m_Device->CreateVertexShader(VSBytes.data(), VSBytes.size(), nullptr, &mat->vertexShader);
-		if(SUCCEEDED(hr))
-		{
-			D3D11_INPUT_ELEMENT_DESC vLayout[] =
-			{
-					{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-					{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-					{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-					{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-					{ "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-			};
-
-			hr = m_Device->CreateInputLayout(vLayout, ARRAYSIZE(vLayout), VSBytes.data(), VSBytes.size(), &mat->inputLayout);
-
-			if(FAILED(hr))
-				foundVS = false;
-		}
-		else
-			foundVS = false;
-	}
-
-	if(foundPS)
-	{
-		HRESULT hr = m_Device->CreatePixelShader(PSBytes.data(), PSBytes.size(), nullptr, &mat->pixelShader);
-		if(FAILED(hr))
-			foundPS = false;
-	}
-
-	if(foundPS || foundVS)
-		return mat;
-
-	mat->Release();
-	GetResourceManager()->RemoveResource(mat, name);
-	return nullptr;
+	return mat;
 }
 
 Texture2D * Renderer::CreateTextureFromFile(std::string name)
@@ -479,7 +481,7 @@ Texture2D * Renderer::CreateTextureFromFile(std::string name)
 		return texture;
 
 	texture->Release();
-	GetResourceManager()->RemoveResource(texture, name);
+	GetResourceManager()->RemoveResource(texture);
 	return nullptr;
 }
 
@@ -497,12 +499,12 @@ void Renderer::DrawDebugShape(GeometryBuffer * shape, const DirectX::XMMATRIX & 
 	matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
 	UpdateConstantBuffer(m_TransformBuffer);
 	m_Context->IASetVertexBuffers(0, 1, &shape->vertexBuffer.data, &stride, &offset);
-	m_Context->IASetInputLayout(DebugHelpers::DebugMat->inputLayout);
+	m_Context->IASetInputLayout(DebugHelpers::DebugMat->vertexShader->inputLayout);
 	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP);
 
-	m_Context->VSSetShader(DebugHelpers::DebugMat->vertexShader, nullptr, 0);
+	m_Context->VSSetShader(DebugHelpers::DebugMat->vertexShader->d3dShader, nullptr, 0);
 	m_Context->VSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
-	m_Context->PSSetShader(DebugHelpers::DebugMat->pixelShader, nullptr, 0);
+	m_Context->PSSetShader(DebugHelpers::DebugMat->pixelShader->d3dShader, nullptr, 0);
 
 	m_Context->Draw(shape->vertexBuffer.size, 0);
 }
@@ -527,22 +529,16 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 
 	m_Context->IASetVertexBuffers(0, 1, &mesh->geometry->vertexBuffer.data, &stride, &offset);
 	m_Context->IASetIndexBuffer(mesh->geometry->indexBuffer.data, DXGI_FORMAT_R32_UINT, 0);
-	m_Context->IASetInputLayout(mesh->material->inputLayout);
+	m_Context->IASetInputLayout(mesh->material->vertexShader->inputLayout);
 	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	m_Context->VSSetShader(mesh->material->vertexShader, nullptr, 0);
+	m_Context->VSSetShader(mesh->material->vertexShader->d3dShader, nullptr, 0);
 	m_Context->VSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
-	m_Context->PSSetShader(mesh->material->pixelShader, nullptr, 0);
+	m_Context->PSSetShader(mesh->material->pixelShader->d3dShader, nullptr, 0);
 	m_Context->PSSetSamplers(0, 1, m_SamplerLinearWrap.GetAddressOf());
 	m_Context->PSSetSamplers(1, 1, m_ShadowSampler.GetAddressOf());
 	m_Context->PSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
-	int i = 0;
-	for(auto& tex : mesh->material->textures)
-	{
-		m_Context->PSSetShaderResources(i, 1, &mesh->material->textures[i]->shaderResourceView);
-		++i;
-	}
-	m_Context->PSSetShaderResources(6, 1, &m_ShadowMap->shaderResourceView);
+	SetShaderResources(mesh->material);
 
 	m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
 }
@@ -659,7 +655,7 @@ void Renderer::InitializeShadowMaps(float resolution)
 			}
 		}
 		m_ShadowMap->Release();
-		GetResourceManager()->RemoveResource(m_ShadowMap, "ShadowMap");
+		GetResourceManager()->RemoveResource(m_ShadowMap);
 	}
 }
 
@@ -674,6 +670,16 @@ void Renderer::CreateRasterizerStates()
 
 }
 
+void Renderer::SetShaderResources(Material * mat)
+{
+	for(int i = 0; i < 6; i++)
+	{
+		if(mat->textures[i])
+			m_Context->PSSetShaderResources(i, 1, &mat->textures[i]->shaderResourceView);
+	}
+	m_Context->PSSetShaderResources(6, 1, &m_ShadowMap->shaderResourceView);
+}
+
 void Renderer::UpdateLightBuffers(XMFLOAT3 ambientColor, std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights)
 {
 	CLightInfoBuffer* buffer = static_cast<CLightInfoBuffer*>(m_LightInfoBuffer->cpu);
@@ -684,9 +690,8 @@ void Renderer::UpdateLightBuffers(XMFLOAT3 ambientColor, std::vector<PointLightC
 		XMStoreFloat3(&buffer->lightInfo.directionalLight.direction, vec);
 
 		buffer->lightInfo.directionalShadowInfo.viewProj = XMMatrixTranspose(m_DirectionalLight->GetLightSpaceMatrix(m_ActiveCamera));
-
-		buffer->lightInfo.directionalShadowInfo.bias = m_DirectionalLight->GetShadowBias();
 		buffer->lightInfo.directionalShadowInfo.normalOffset = m_DirectionalLight->GetNormalOffset();
+		buffer->lightInfo.directionalShadowInfo.bias = m_DirectionalLight->GetShadowBias();
 		buffer->lightInfo.directionalShadowInfo.resolution = m_DirectionalLight->GetShadowResolution();
 	}
 	//Point lights
@@ -766,7 +771,7 @@ ConstantBuffer * Renderer::CreateConstantBuffer(uint32_t size, std::string name)
 	}
 
 	buffer->Release();
-	GetResourceManager()->RemoveResource(buffer, name);
+	GetResourceManager()->RemoveResource(buffer);
 	return nullptr;
 }
 

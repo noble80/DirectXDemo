@@ -1,20 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <FxCompile Include="Shaders\Trivial_PS.hlsl" />
-    <FxCompile Include="Shaders\Trivial_VS.hlsl" />
-    <FxCompile Include="Shaders\Debug_VS.hlsl" />
     <FxCompile Include="Shaders\Debug_PS.hlsl" />
-    <FxCompile Include="Shaders\Wave_PS.hlsl" />
     <FxCompile Include="Shaders\Wave_VS.hlsl" />
-    <FxCompile Include="Shaders\ColorLitAO_PS.hlsl" />
-    <FxCompile Include="Shaders\ColorLitAO_VS.hlsl" />
-    <FxCompile Include="Shaders\ColorLit_PS.hlsl" />
-    <FxCompile Include="Shaders\ColorLit_VS.hlsl" />
-    <FxCompile Include="Shaders\Flag_PS.hlsl" />
     <FxCompile Include="Shaders\Flag_VS.hlsl" />
-    <FxCompile Include="Shaders\ColorLitReflective_PS.hlsl" />
-    <FxCompile Include="Shaders\ColorLitReflective_VS.hlsl" />
+    <FxCompile Include="Shaders\Default_VS.hlsl" />
+    <FxCompile Include="Shaders\BlinnPhong_PS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />
@@ -51,6 +42,7 @@
     <ClCompile Include="Source\Private\Renderer\DebugHelpers.cpp" />
     <ClCompile Include="Source\Private\Importer\MeshImporter.cpp" />
     <ClCompile Include="Source\Private\Engine\MeshComponent.cpp" />
+    <ClCompile Include="Source\Private\Renderer\ShaderContainers.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Public\Engine\CameraComponent.h" />
@@ -96,5 +88,6 @@
     <ClInclude Include="Source\Public\Renderer\SurfaceParameters.h" />
     <ClInclude Include="Shaders\PSIncludes.hlsl" />
     <ClInclude Include="Shaders\VSIncludes.hlsl" />
+    <ClInclude Include="Source\Public\Renderer\ShaderContainers.h" />
   </ItemGroup>
 </Project>

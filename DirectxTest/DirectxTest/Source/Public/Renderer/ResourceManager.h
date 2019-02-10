@@ -38,7 +38,7 @@ public:
 			return nullptr;
 	}
 
-	bool RemoveResource(Resource* res, std::string name);
+	bool RemoveResource(Resource* res);
 
 	ID3D11Buffer* CreateD3DBuffer(D3D11_BUFFER_DESC* desc, D3D11_SUBRESOURCE_DATA* InitData);
 

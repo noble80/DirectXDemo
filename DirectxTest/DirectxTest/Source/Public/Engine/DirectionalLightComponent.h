@@ -50,8 +50,8 @@ private:
 	float m_Intensity;
 	float m_ShadowDistance;
 	float m_ShadowBias;
-	float m_NormalOffset;
 	float m_ShadowResolution;
+	float m_NormalOffset;
 	float m_ShadowNearClip;
 };
 
