@@ -1,0 +1,147 @@
+#include "PSIncludes.hlsl"
+
+Texture2D diffuseMap : register(t0);
+Texture2D specularMap : register(t1);
+Texture2D glossinessMap : register(t2);
+Texture2D normalMap : register(t3);
+Texture2D AOMap : register(t4);
+TextureCube ReflectionMap : register(t5);
+Texture2D directionalShadowMap : register(t6);
+
+SamplerState sampleTypeWrap : register(s0);
+SamplerComparisonState sampleTypeShadows : register(s1);
+SamplerState sampleTypeClamp : register(s2);
+
+struct INPUT_PIXEL
+{
+    float4 Pos : SV_POSITION;
+    float3 PosWS : POSITION;
+    float2 Tex : TEXCOORD0;
+    float3 NormalWS : NORMAL;
+    float3 TangentWS : TANGENT;
+    float3 BinormalWS : BINORMAL;
+};
+
+float4 main(INPUT_PIXEL pIn) : SV_TARGET
+{
+    float3 viewWS = normalize(pIn.PosWS - _EyePosition);
+    float reflectionLevel;
+    float3 reflection;
+    float3 normalSample;
+
+    SurfaceBlinnPhong surface;
+    surface.diffuseColor = _diffuseColor;
+    surface.specularIntensity = _specularIntensity;
+    surface.glossiness = _glossinessRoughness;
+    surface.ambient = _ambientIntensity;
+    surface.emissiveColor = _emissiveColor;
+
+    if (HasDiffuseTexture(_textureFlags))
+    {
+        surface.diffuseColor *= diffuseMap.Sample(sampleTypeWrap, pIn.Tex).xyz;
+    }
+
+    if (HasSpecularTexture(_textureFlags))
+    {
+        surface.specularIntensity *= specularMap.Sample(sampleTypeWrap, pIn.Tex).x;
+    }
+
+    if (HasGlossinessTexture(_textureFlags))
+    {
+        surface.glossiness *= glossinessMap.Sample(sampleTypeWrap, pIn.Tex).x;
+    }
+
+    if (HasAOTexture(_textureFlags))
+    {
+        surface.ambient *= AOMap.Sample(sampleTypeWrap, pIn.Tex).x;
+    }
+
+    if (HasEmissiveMask(_textureFlags))
+    {
+        surface.emissiveColor *= diffuseMap.Sample(sampleTypeWrap, pIn.Tex).w;
+    }
+
+    if (HasNormalTexture(_textureFlags))
+    {
+        normalSample = normalMap.Sample(sampleTypeWrap, pIn.Tex).wyz * 2.f - 1.f;
+        normalSample.z = sqrt(1 - normalSample.x * normalSample.x - normalSample.y * normalSample.y);
+        surface.normal = pIn.TangentWS * normalSample.x + pIn.BinormalWS * normalSample.y + pIn.NormalWS * normalSample.z;
+    }
+    else
+    {
+        surface.normal = pIn.NormalWS;
+    }
+    surface.normal = normalize(surface.normal);
+
+    float3 reflectionVector = reflect(viewWS, surface.normal);
+
+
+    float3 positionWS = pIn.PosWS;
+    float3 color = surface.ambient*lightInfo.ambientColor*surface.diffuseColor + surface.emissiveColor;
+
+    if (HasReflections(_textureFlags))
+    {
+        reflectionLevel = saturate(1.f - surface.glossiness) * 10.f;
+        reflection = surface.specularIntensity*ReflectionMap.SampleLevel(sampleTypeClamp, reflectionVector, reflectionLevel).xyz;
+        color += reflection;
+    }
+
+    for (int i = 0; i < lightInfo.pointLightCount; i++)
+    {
+        float radius = lightInfo.pointLights[i].radius;
+        float3 lightPos = lightInfo.pointLights[i].position;
+        float3 dir = normalize(lightPos - positionWS);
+        float dist = length(lightPos - positionWS);
+        float attenuation = saturate(1.0f - dist * dist / (radius * radius));
+        attenuation *= attenuation;
+
+        color += lightInfo.pointLights[i].color * attenuation * BlinnPhong(surface, dir, viewWS);
+
+    }
+
+    for (i = 0; i < lightInfo.spotLightCount; i++)
+    {
+        float radius = lightInfo.spotLights[i].radius;
+        float outerCone = lightInfo.spotLights[i].outerCone;
+        float innerCone = lightInfo.spotLights[i].innerCone;
+        float3 lightPos = lightInfo.spotLights[i].position;
+        float3 dir = normalize(lightPos - positionWS);
+        float dist = length(lightPos - positionWS);
+
+        float pAttenuation = saturate(1.0f - dist * dist / (radius * radius));
+        pAttenuation *= pAttenuation;
+
+        float sAttenuation = saturate((dot(dir, -lightInfo.spotLights[i].direction) - outerCone) / (innerCone - outerCone));
+        sAttenuation *= sAttenuation;
+
+        color += lightInfo.spotLights[i].color * sAttenuation * pAttenuation * BlinnPhong(surface, dir, viewWS);
+    }
+
+	{
+        float shadowRatio = 1.0f;
+        float txlSize = 1.0f / (lightInfo.directionalShadowInfo.resolution);
+
+        float lightRatio = saturate(dot(surface.normal, -lightInfo.directionalLight.direction));
+
+        float cosAngle = saturate(1.0f - lightRatio);
+        float3 normalOffset = pIn.NormalWS * (lightInfo.directionalShadowInfo.normalOffset * cosAngle);
+
+        float4 lightSpacePos = mul(float4(positionWS + normalOffset, 1), lightInfo.directionalShadowInfo.viewProj);
+        float3 lspProj = lightSpacePos.xyz / lightSpacePos.w;
+		// Screencoords to NDC
+        float2 shadowCoords;
+        shadowCoords.x = lspProj.x / 2.0f + 0.5f;
+        shadowCoords.y = -lspProj.y / 2.0f + 0.5f;
+		//Check if within shadowmap bounds
+        if ((saturate(shadowCoords.x) == shadowCoords.x) && (saturate(shadowCoords.y) == shadowCoords.y))
+        {
+			//Get depth w/ bias
+            float z = lspProj.z - lightInfo.directionalShadowInfo.bias;
+
+            shadowRatio = PCFBlur(shadowCoords, 2, z, directionalShadowMap, sampleTypeShadows, txlSize);
+        }
+
+        color += lightInfo.directionalLight.color * shadowRatio * BlinnPhong(surface, -lightInfo.directionalLight.direction, viewWS);
+    }
+    return float4(color, 1.f);
+}
