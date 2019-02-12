@@ -7,7 +7,6 @@
 #include "Renderer/ResourceManager.h"
 
 #include "Renderer\RenderTexture2D.h"
-#include "Renderer\Texture2D.h"
 #include "Renderer\Material.h"
 #include "Renderer\Mesh.h"
 #include "Renderer\ShaderContainers.h"
@@ -143,7 +142,7 @@ bool Renderer::Initialize(Window * window)
 
 			hr = dxgiFactory2->CreateSwapChainForHwnd(m_Device.Get(), window->GetHandle(), &sd, &fd, nullptr, &m_Swapchain);
 		}
-		dxgiFactory->MakeWindowAssociation(window->GetHandle(), DXGI_MWA_NO_ALT_ENTER);
+		//dxgiFactory->MakeWindowAssociation(window->GetHandle(), DXGI_MWA_NO_ALT_ENTER);
 
 		if(FAILED(hr))
 			return false;
@@ -191,7 +190,7 @@ bool Renderer::Initialize(Window * window)
 		hr = m_Device->CreateTexture2D(&descDepth, nullptr, &stencilTx);
 		if(FAILED(hr))
 			return hr;
-
+		
 		// Create the depth stencil view
 		D3D11_DEPTH_STENCIL_VIEW_DESC descDSV{};
 		descDSV.Format = descDepth.Format;
@@ -200,6 +199,32 @@ bool Renderer::Initialize(Window * window)
 		hr = m_Device->CreateDepthStencilView(stencilTx.Get(), &descDSV, &m_DepthStencilView);
 		if(FAILED(hr))
 			return hr;
+
+		D3D11_DEPTH_STENCIL_DESC depthStencilDesc{};
+		// Set up the description of the stencil state.
+		depthStencilDesc.DepthEnable = true;
+		depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+		depthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS;
+
+		depthStencilDesc.StencilEnable = true;
+		depthStencilDesc.StencilReadMask = 0xFF;
+		depthStencilDesc.StencilWriteMask = 0xFF;
+
+		// Stencil operations if pixel is front-facing.
+		depthStencilDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+		depthStencilDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_INCR;
+		depthStencilDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+		depthStencilDesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+
+		// Stencil operations if pixel is back-facing.
+		depthStencilDesc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+		depthStencilDesc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_DECR;
+		depthStencilDesc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+		depthStencilDesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+		m_Device->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilState);
+
+		depthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+		m_Device->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilSkyState);
 	}
 #pragma endregion STENCIL_CREATION
 
@@ -221,6 +246,8 @@ bool Renderer::Initialize(Window * window)
 
 	// Create the sample state wrap
 	{
+
+
 		D3D11_SAMPLER_DESC sampDesc = {};
 		sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -255,6 +282,27 @@ bool Renderer::Initialize(Window * window)
 		sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
 		hr = m_Device->CreateSamplerState(&sampDesc, &m_SamplerLinearClamp);
+		if(FAILED(hr))
+			return hr;
+
+		sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL;
+
+		sampDesc.MinLOD = 0;
+		sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+		hr = m_Device->CreateSamplerState(&sampDesc, &m_SamplerSky);
+		if(FAILED(hr))
+			return hr;
+		
+		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+		hr = m_Device->CreateSamplerState(&sampDesc, &m_SamplerNearest);
 		if(FAILED(hr))
 			return hr;
 
@@ -321,6 +369,7 @@ bool Renderer::InitializeGeometryPass()
 	// Clear the depth buffer to 1.0 (max depth)
 	m_Context->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	m_Context->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), m_DepthStencilView.Get());
+	m_Context->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
 	m_Context->RSSetViewports(1, m_ActiveCameraViewport);
 
 	m_View = m_ActiveCamera->GetViewMatrix();
@@ -349,6 +398,8 @@ void Renderer::RenderFrame(void)
 			DrawMesh(mesh, model.GetTransformMatrix());
 		}
 	}
+	RenderSkybox();
+
 	ID3D11ShaderResourceView* null = nullptr;
 	m_Context->PSSetShaderResources(6, 1, &null);
 }
@@ -538,6 +589,7 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 	m_Context->PSSetSamplers(0, 1, m_SamplerLinearWrap.GetAddressOf());
 	m_Context->PSSetSamplers(1, 1, m_ShadowSampler.GetAddressOf());
 	m_Context->PSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
+	m_Context->PSSetSamplers(3, 1, m_SamplerNearest.GetAddressOf());
 	SetShaderResources(mesh->material);
 
 	m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
@@ -553,7 +605,6 @@ void Renderer::SetDirectionalLight(DirectionalLightComponent * light)
 
 void Renderer::RenderShadowMaps()
 {
-	CreateRasterizerStates();
 	CLightInfoBuffer* buffer = static_cast<CLightInfoBuffer*>(m_LightInfoBuffer->cpu);
 	m_ViewProjection = m_DirectionalLight->GetLightSpaceMatrix(m_ActiveCamera);
 	m_Context->RSSetState(m_ShadowsRasterizerState.Get());
@@ -667,6 +718,10 @@ void Renderer::CreateRasterizerStates()
 	desc.DepthClipEnable = FALSE;
 	//desc.SlopeScaledDepthBias = 1.0;
 	m_Device->CreateRasterizerState(&desc, &m_ShadowsRasterizerState);
+	desc.DepthClipEnable = TRUE;
+	desc.CullMode = D3D11_CULL_FRONT;
+	//desc.FrontCounterClockwise = TRUE;
+	m_Device->CreateRasterizerState(&desc, &m_SkyRasterizerState);
 
 }
 
@@ -678,6 +733,36 @@ void Renderer::SetShaderResources(Material * mat)
 			m_Context->PSSetShaderResources(i, 1, &mat->textures[i]->shaderResourceView);
 	}
 	m_Context->PSSetShaderResources(6, 1, &m_ShadowMap->shaderResourceView);
+}
+
+void Renderer::RenderSkybox()
+{
+	XMMATRIX transform = XMMatrixScaling(1000.0f, 1000.0f, 1000.0f)*XMMatrixTranslationFromVector(m_ActiveCamera->GetCameraPosition());
+	m_Context->RSSetState(m_SkyRasterizerState.Get());
+	m_Context->OMSetDepthStencilState(m_DepthStencilSkyState.Get(), 0);
+	Mesh* mesh = GetResourceManager()->GetResource<Mesh>("SkySphere");
+	if(mesh)
+	{
+		UINT stride = sizeof(Vertex);
+		UINT offset = 0;
+
+		CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
+		matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
+		matrices->World = XMMatrixTranspose(transform);
+		UpdateConstantBuffer(m_TransformBuffer);
+		UpdateMaterialSurfaceBuffer(&mesh->material->surfaceParameters);
+		m_Context->IASetVertexBuffers(0, 1, &mesh->geometry->vertexBuffer.data, &stride, &offset);
+		m_Context->IASetIndexBuffer(mesh->geometry->indexBuffer.data, DXGI_FORMAT_R32_UINT, 0);
+		m_Context->IASetInputLayout(mesh->material->vertexShader->inputLayout);
+		m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		m_Context->VSSetShader(mesh->material->vertexShader->d3dShader, nullptr, 0);
+		m_Context->VSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
+		m_Context->PSSetShader(mesh->material->pixelShader->d3dShader, nullptr, 0);
+		m_Context->PSSetSamplers(3, 1, m_SamplerSky.GetAddressOf());
+		SetShaderResources(mesh->material);
+
+		m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
+	}
 }
 
 void Renderer::UpdateLightBuffers(XMFLOAT3 ambientColor, std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights)
@@ -790,6 +875,7 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, bool NoPixelShader
 			DrawMesh(mesh, model.GetTransformMatrix());
 		}
 	}
+	RenderSkybox();
 
 	m_Context->OMSetRenderTargets(1, &output->renderTargetView, nullptr);
 }

@@ -1,11 +1,9 @@
-#include "PSIncludes.hlsl"
+#include "BlinnPhong_Include.hlsl"
 
 Texture2D diffuseMap : register(t0);
-Texture2D specularMap : register(t1);
-Texture2D glossinessMap : register(t2);
-Texture2D normalMap : register(t3);
-Texture2D AOMap : register(t4);
-TextureCube ReflectionMap : register(t5);
+Texture2D detailsMap : register(t1);
+Texture2D normalMap : register(t2);
+TextureCube ReflectionMap : register(t3);
 Texture2D directionalShadowMap : register(t6);
 
 SamplerState sampleTypeWrap : register(s0);
@@ -33,27 +31,29 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
     surface.diffuseColor = _diffuseColor;
     surface.specularIntensity = _specularIntensity;
     surface.glossiness = _glossinessRoughness;
+
     surface.ambient = _ambientIntensity;
     surface.emissiveColor = _emissiveColor;
 
     if (HasDiffuseTexture(_textureFlags))
     {
-        surface.diffuseColor *= diffuseMap.Sample(sampleTypeWrap, pIn.Tex).xyz;
+        float3 diffuse = diffuseMap.Sample(sampleTypeWrap, pIn.Tex).xyz;
+        surface.diffuseColor *= diffuse;
     }
 
     if (HasSpecularTexture(_textureFlags))
     {
-        surface.specularIntensity *= specularMap.Sample(sampleTypeWrap, pIn.Tex).x;
+        surface.specularIntensity *= detailsMap.Sample(sampleTypeWrap, pIn.Tex).x;
     }
 
     if (HasGlossinessTexture(_textureFlags))
     {
-        surface.glossiness *= glossinessMap.Sample(sampleTypeWrap, pIn.Tex).x;
+        surface.glossiness *= detailsMap.Sample(sampleTypeWrap, pIn.Tex).y;
     }
 
     if (HasAOTexture(_textureFlags))
     {
-        surface.ambient *= AOMap.Sample(sampleTypeWrap, pIn.Tex).x;
+        surface.ambient *= detailsMap.Sample(sampleTypeWrap, pIn.Tex).z;
     }
 
     if (HasEmissiveMask(_textureFlags))
@@ -122,9 +122,7 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
         float txlSize = 1.0f / (lightInfo.directionalShadowInfo.resolution);
 
         float lightRatio = saturate(dot(surface.normal, -lightInfo.directionalLight.direction));
-
-        float cosAngle = saturate(1.0f - lightRatio);
-        float3 normalOffset = pIn.NormalWS * (lightInfo.directionalShadowInfo.normalOffset * cosAngle);
+        float3 normalOffset = pIn.NormalWS * (lightInfo.directionalShadowInfo.normalOffset * (1.f - lightRatio));
 
         float4 lightSpacePos = mul(float4(positionWS + normalOffset, 1), lightInfo.directionalShadowInfo.viewProj);
         float3 lspProj = lightSpacePos.xyz / lightSpacePos.w;
@@ -143,5 +141,7 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
 
         color += lightInfo.directionalLight.color * shadowRatio * BlinnPhong(surface, -lightInfo.directionalLight.direction, viewWS);
     }
+
+    color = pow(color, 1.f / 2.2f);
     return float4(color, 1.f);
 }

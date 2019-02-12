@@ -4,11 +4,11 @@
 Material::Material()
 {
 	diffuseMap = nullptr;
-	specularMap = nullptr;
-	glossinessMap = nullptr;
+	detailsMap = nullptr;
 	normalMap = nullptr;
-	AOMap = nullptr;
 	reflectionMap = nullptr;
+	IBLSpecular = nullptr;
+	IBLIntegration = nullptr;
 }
 
 Material::~Material()

@@ -1,7 +1,8 @@
 #pragma once
-#include "Texture2D.h"
 #include "ShaderContainers.h"
 #include "SurfaceParameters.h"
+
+struct Texture2D;
 
 struct Material : Resource
 {
@@ -15,11 +16,15 @@ public:
 		struct
 		{
 			Texture2D* diffuseMap;
-			Texture2D* specularMap;
-			Texture2D* glossinessMap;
+			Texture2D* detailsMap;
 			Texture2D* normalMap;
-			Texture2D* AOMap;
-			Texture2D* reflectionMap;
+			union
+			{
+				Texture2D* reflectionMap;
+				Texture2D* IBLDiffuse;
+			};
+			Texture2D* IBLSpecular;
+			Texture2D* IBLIntegration;
 		};
 
 		Texture2D* textures[6];

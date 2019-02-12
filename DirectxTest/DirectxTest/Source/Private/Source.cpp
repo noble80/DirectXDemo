@@ -79,6 +79,11 @@ int WINAPI WinMain(
 		//Create materials
 		VertexShader* defaultVS = renderer->CreateVertexShader("Default");
 		PixelShader* defaultPS = renderer->CreatePixelShader("BlinnPhong");
+		PixelShader* pbrPS = renderer->CreatePixelShader("PBR");
+
+		renderer->CreateTextureFromFile("IBLTestDiffuseHDR");
+		renderer->CreateTextureFromFile("IBLTestSpecularHDR");
+		renderer->CreateTextureFromFile("IBLTestBrdf");
 
 		Material* simpleColorMat = renderer->CreateMaterial("SimpleColor");
 		simpleColorMat->vertexShader = defaultVS;
@@ -98,12 +103,12 @@ int WINAPI WinMain(
 		Material* cornellBoxMat = renderer->CreateMaterial("CornellBox");
 		cornellBoxMat->vertexShader = defaultVS;
 		cornellBoxMat->pixelShader = defaultPS;
-		cornellBoxMat->AOMap = renderer->CreateTextureFromFile("CornellBoxAO");
+		cornellBoxMat->detailsMap = renderer->CreateTextureFromFile("CornellBoxAO");
 		cornellBoxMat->reflectionMap = reflectiveMat->reflectionMap;
-		cornellBoxMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_AO_MAP | SURFACE_FLAG_HAS_REFLECTIONS;
-		cornellBoxMat->surfaceParameters.diffuseColor = XMFLOAT3(0.6, 0.65f, 0.8f);
-		cornellBoxMat->surfaceParameters.specularIntensity = 0.4f;
-		cornellBoxMat->surfaceParameters.glossiness = 0.58f;
+		cornellBoxMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_AO_MAP;// | SURFACE_FLAG_HAS_REFLECTIONS;
+		cornellBoxMat->surfaceParameters.diffuseColor = XMFLOAT3(0.3f, 0.3f, 0.3f);
+		cornellBoxMat->surfaceParameters.specularIntensity = .2f;
+		cornellBoxMat->surfaceParameters.glossiness = 0.3f;
 
 		Material* rockMat = renderer->CreateMaterial("Rock01");
 		rockMat->vertexShader = defaultVS;
@@ -112,7 +117,7 @@ int WINAPI WinMain(
 		rockMat->normalMap = renderer->CreateTextureFromFile("Rock01_LP_normal");
 		rockMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP | SURFACE_FLAG_HAS_NORMAL_MAP;
 		rockMat->surfaceParameters.specularIntensity = 0.1f;
-		rockMat->surfaceParameters.glossiness = 0.2;
+		rockMat->surfaceParameters.glossiness = 0.2f;
 
 		Material* waveMat = renderer->CreateMaterial("Wave");
 		waveMat->vertexShader = renderer->CreateVertexShader("Wave");
@@ -122,7 +127,16 @@ int WINAPI WinMain(
 		flagMat->vertexShader = renderer->CreateVertexShader("Flag");
 		flagMat->pixelShader = defaultPS;
 
+		Material* skyMat = renderer->CreateMaterial("Sky");
+		skyMat->vertexShader = renderer->CreateVertexShader("Sky");
+		skyMat->pixelShader = renderer->CreatePixelShader("Sky");
+		skyMat->diffuseMap = reflectiveMat->reflectionMap;
+
 		// Create meshes
+		Mesh* skySphere = renderer->GetResourceManager()->CreateResource<Mesh>("SkySphere");
+		skySphere->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01");
+		skySphere->material = skyMat;
+
 		Mesh* rock = renderer->GetResourceManager()->CreateResource<Mesh>("Rock01");
 		rock->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Rock01");
 		rock->material = rockMat;
@@ -203,7 +217,8 @@ int WINAPI WinMain(
 		Entity* entity = sceneManager->CreateEntity("Sphere01");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
 		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
-		transform->SetPosition(XMVectorSet(4.f, 10.f, 3.f, 1.f));
+		transform->SetPosition(XMVectorSet(4.f, 12.f, 3.f, 1.f));
+		transform->SetScale(XMVectorSet(2.f, 2.f, 2.f, 1.f));
 
 		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Sphere01"));
@@ -224,7 +239,8 @@ int WINAPI WinMain(
 		Entity* entity = sceneManager->CreateEntity("Sphere03");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
 		transform->SetRotation(Quaternion::FromAngles(0.f, 180.f, 0.f));
-		transform->SetPosition(XMVectorSet(0.f, 0.f, 4.f, 1.f));
+		transform->SetPosition(XMVectorSet(0.f, 3.f, 4.f, 1.f));
+		transform->SetScale(XMVectorSet(2.f, 2.f, 2.f, 1.f));
 
 		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("WaveSphere01"));
@@ -271,6 +287,57 @@ int WINAPI WinMain(
 		light->SetInnerAngle(10.f);
 		light->SetOuterAngle(25.f);
 	}
+	//BlinnPhong test
+	for(int i = 0; i < 5; i++)
+		for(int j = 0; j < 5; j++)
+		{
+			std::string name = "BlinnPhongTest" + std::to_string(i) + std::to_string(j);
+
+			Entity* entity = sceneManager->CreateEntity(name);
+			TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
+			transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
+			transform->SetPosition(XMVectorSet(15.f + j * 4.f, i*4.f, 0.f, 1.f));
+			transform->SetScale(XMVectorSet(2.f, 2.f, 2.f, 1.f));
+
+			MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
+
+			Mesh* mesh = renderer->GetResourceManager()->CreateResource<Mesh>(name);
+			mesh->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01");
+			mesh->material = renderer->GetResourceManager()->CreateResource<Material>(name);
+			mesh->material->vertexShader = renderer->GetResourceManager()->GetResource<VertexShader>("Default");
+			mesh->material->pixelShader = renderer->GetResourceManager()->GetResource<PixelShader>("BlinnPhong");
+			mesh->material->surfaceParameters.diffuseColor = XMFLOAT3(0.5, 0.5f, 0.5f);
+			mesh->material->surfaceParameters.specularIntensity = i / 4.0f;
+			mesh->material->surfaceParameters.glossiness = j / 4.0f;
+			model->AddMesh(mesh);
+		}
+	//PBRTest
+	for(int i = 0; i < 5; i++)
+		for(int j = 0; j < 5; j++)
+		{
+			std::string name = "PBRTest" + std::to_string(i) + std::to_string(j);
+
+			Entity* entity = sceneManager->CreateEntity(name);
+			TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
+			transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
+			transform->SetPosition(XMVectorSet(-15.f + -j * 4.f, i*4.f, 0.f, 1.f));
+			transform->SetScale(XMVectorSet(2.f, 2.f, 2.f, 1.f));
+
+			MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
+
+			Mesh* mesh = renderer->GetResourceManager()->CreateResource<Mesh>(name);
+			mesh->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01");
+			mesh->material = renderer->GetResourceManager()->CreateResource<Material>(name);
+			mesh->material->IBLDiffuse = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestDiffuseHDR");
+			mesh->material->IBLSpecular = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestSpecularHDR");
+			mesh->material->IBLIntegration = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestBrdf");
+			mesh->material->vertexShader = renderer->GetResourceManager()->GetResource<VertexShader>("Default");
+			mesh->material->pixelShader = renderer->GetResourceManager()->GetResource<PixelShader>("PBR");
+			mesh->material->surfaceParameters.diffuseColor = XMFLOAT3(1, 0.0f, 0.0f);
+			mesh->material->surfaceParameters.metallic = i / 4.0f;
+			mesh->material->surfaceParameters.roughness = j / 4.0f;
+			model->AddMesh(mesh);
+		}
 
 	// time variables
 	XTime timer;
@@ -377,12 +444,12 @@ int WINAPI WinMain(
 		}
 
 		renderer->SetActiveModels(sceneManager->GetComponents<MeshComponent>());
-		renderer->UpdateLightBuffers(XMFLOAT3(0.4f, 0.4f, 0.4f), sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
+		renderer->UpdateLightBuffers(XMFLOAT3(0.1f, 0.1f, 0.1f), sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
 		renderer->UpdateSceneBuffer(totalTime);
 		renderer->RenderFrame();
 
 	#ifdef _DEBUG
-		renderer->DrawDebugShape(DebugHelpers::DebugSphere, sceneManager->GetEntity("Sphere01")->GetComponent<TransformComponent>()->GetTransformMatrix());
+		renderer->DrawDebugShape(DebugHelpers::DebugSphere, XMMatrixIdentity());
 		Log::DebugConsole::PrintDeferred();
 	#endif
 

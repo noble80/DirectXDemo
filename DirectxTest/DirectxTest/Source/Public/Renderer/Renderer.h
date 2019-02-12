@@ -13,6 +13,7 @@ struct D3D11_VIEWPORT;
 struct ID3D11InputLayout;
 struct ID3D11SamplerState;
 struct ID3D11RasterizerState;
+struct ID3D11DepthStencilState;
 
 struct CTransformBuffer;
 
@@ -90,6 +91,7 @@ private:
 	void InitializeShadowMaps(float resolution);
 	void CreateRasterizerStates();
 	void SetShaderResources(Material* mat);
+	void RenderSkybox();
 
 	Microsoft::WRL::ComPtr<IDXGISwapChain1>				m_Swapchain;		// ptr to swap chain
 	Microsoft::WRL::ComPtr<ID3D11Device1>				m_Device;			// ptr to device
@@ -99,9 +101,15 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_ShadowSampler;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_SamplerLinearWrap;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_SamplerLinearClamp;
+	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_SamplerSky;
+	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_SamplerNearest;
 
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>		m_SceneRasterizerState;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>		m_ShadowsRasterizerState;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState>		m_SkyRasterizerState;
+
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilState>		m_DepthStencilState;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilState>		m_DepthStencilSkyState;
 
 	   
 	ConstantBuffer*										m_LightInfoBuffer;
@@ -110,7 +118,7 @@ private:
 	ConstantBuffer*										m_MaterialSurfaceBuffer;
 
 	CameraComponent*									m_ActiveCamera;
-	std::vector<MeshComponent>*						m_ActiveModels;
+	std::vector<MeshComponent>*							m_ActiveModels;
 	RenderTexture2D*									m_ShadowMap;
 	DirectionalLightComponent*							m_DirectionalLight;
 

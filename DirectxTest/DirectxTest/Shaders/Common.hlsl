@@ -6,6 +6,7 @@
 static const float PI = 3.14159265f;
 
 
+
 struct PointLight
 {
     float3 position;
@@ -53,15 +54,10 @@ struct LightInfo
     float3 padding;
 };
 
-struct SurfaceBlinnPhong
+float remap(float value, float low1, float high1, float low2, float high2)
 {
-    float3 diffuseColor;
-    float specularIntensity;
-    float3 emissiveColor;
-    float glossiness;
-    float3 normal;
-    float ambient;
-};
+    return low2 + (value - low1) * (high2 - low2) / (high1 - low1);
+}
 
 float samplePCF(float2 uv, float x, float y, float z0, Texture2D shadowMap, SamplerComparisonState samp, float txlSize)
 {
@@ -96,7 +92,15 @@ inline int HasSpecularTexture(int flags)
 {
     return ((flags & 2) > 0 ? 1 : 0);
 }
+inline int HasMetallicTexture(int flags)
+{
+    return ((flags & 2) > 0 ? 1 : 0);
+}
 inline int HasGlossinessTexture(int flags)
+{
+    return ((flags & 4) > 0 ? 1 : 0);
+}
+inline int HasRoughnessTexture(int flags)
 {
     return ((flags & 4) > 0 ? 1 : 0);
 }
@@ -116,20 +120,6 @@ inline int HasEmissiveMask(int flags)
 inline int HasReflections(int flags)
 {
     return ((flags & 64) > 0 ? 1 : 0);
-}
-
-float3 BlinnPhong(SurfaceBlinnPhong surface, float3 lightDir, float3 viewWS)
-{
-
-    float specularPower = pow(2, surface.glossiness * 8.f);
-    float specularIntensity = surface.specularIntensity;
-    float3 normal = surface.normal;
-    float LDotN = max(0.0f, dot(lightDir, normal));
-    float3 diffuse = surface.diffuseColor * LDotN;
-    float3 h = normalize(lightDir - viewWS);
-    float specular = specularIntensity * pow(saturate(dot(h, normal)), specularPower);
-
-    return (diffuse + specular);
 }
 
 

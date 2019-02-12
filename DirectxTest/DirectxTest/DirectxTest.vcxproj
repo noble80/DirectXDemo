@@ -24,6 +24,9 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Effect</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Effect</ShaderType>
     </ClInclude>
+    <ClInclude Include="Shaders\BlinnPhong_Include.hlsl">
+      <FileType>Document</FileType>
+    </ClInclude>
     <FxCompile Include="Shaders\Debug_PS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
@@ -49,6 +52,36 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
+    <ClInclude Include="Shaders\PBR_Include.hlsl">
+      <FileType>Document</FileType>
+    </ClInclude>
+    <FxCompile Include="Shaders\PBR_PS.hlsl">
+      <FileType>Document</FileType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\Sky_PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Shaders\Sky_VS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+    </FxCompile>
     <FxCompile Include="Shaders\Wave_VS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
@@ -67,7 +100,6 @@
     <ClCompile Include="Source\Private\Engine\PointLightComponent.cpp" />
     <ClCompile Include="Source\Private\Engine\SceneManager.cpp" />
     <ClCompile Include="Source\Private\Engine\SpotLightComponent.cpp" />
-    <ClCompile Include="Source\Private\Engine\Texture.cpp" />
     <ClCompile Include="Source\Private\Engine\TransformComponent.cpp" />
     <ClCompile Include="Source\Private\Importer\DDSTextureLoader.cpp" />
     <ClCompile Include="Source\Private\Importer\MeshImporter.cpp" />
@@ -112,7 +144,6 @@
     <ClInclude Include="Source\Public\Engine\PointLightComponent.h" />
     <ClInclude Include="Source\Public\Engine\SceneManager.h" />
     <ClInclude Include="Source\Public\Engine\SpotLightComponent.h" />
-    <ClInclude Include="Source\Public\Engine\Texture.h" />
     <ClInclude Include="Source\Public\Engine\TransformComponent.h" />
     <ClInclude Include="Source\Public\Importer\ComplexOBJ.h" />
     <ClInclude Include="Source\Public\Importer\DDSTextureLoader.h" />

@@ -91,9 +91,6 @@ bool Window::Initialize(Vector2 dimensions, uint32_t flags, std::wstring appName
 		posY = posX = 0;
 	}*/
 
-
-
-
 	RECT wr = {0, 0, static_cast<int>(m_Dimensions.x), static_cast<int>(m_Dimensions.y)};    // set the size
 	AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE);    // adjust the size
 
@@ -105,7 +102,7 @@ bool Window::Initialize(Vector2 dimensions, uint32_t flags, std::wstring appName
 		m_AppName.c_str(),    // Window class name again
 		m_AppName.c_str(),  // window title text
 		//WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_POPUP,    // style. Being later than extended style may be related to WINAPI
-		WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU,
+		WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU | WS_SIZEBOX,
 		posX,    // x pos
 		posY,    // y pos
 		wr.right - wr.left,    // width of the window
