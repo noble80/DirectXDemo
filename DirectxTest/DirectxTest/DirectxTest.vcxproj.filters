@@ -2,7 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <FxCompile Include="Shaders\Debug_PS.hlsl" />
-    <FxCompile Include="Shaders\Wave_VS.hlsl" />
     <FxCompile Include="Shaders\Flag_VS.hlsl" />
     <FxCompile Include="Shaders\Default_VS.hlsl" />
     <FxCompile Include="Shaders\BlinnPhong_PS.hlsl" />
@@ -92,5 +91,6 @@
     <ClInclude Include="Source\Public\Renderer\ShaderContainers.h" />
     <ClInclude Include="Shaders\BlinnPhong_Include.hlsl" />
     <ClInclude Include="Shaders\PBR_Include.hlsl" />
+    <ClInclude Include="Shaders\Bamboozled.h" />
   </ItemGroup>
 </Project>

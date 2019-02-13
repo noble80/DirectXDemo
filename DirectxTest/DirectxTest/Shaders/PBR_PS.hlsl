@@ -41,15 +41,16 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
         float3 diffuse = diffuseMap.Sample(sampleTypeWrap, pIn.Tex).xyz;
         surface.diffuseColor *= diffuse;
     }
+    surface.diffuseColor = saturate(surface.diffuseColor);
 
     if (HasSpecularTexture(_textureFlags))
     {
-        surface.metallic *= detailsMap.Sample(sampleTypeWrap, pIn.Tex).x;
+        surface.metallic *= detailsMap.Sample(sampleTypeWrap, pIn.Tex).y;
     }
 
     if (HasGlossinessTexture(_textureFlags))
     {
-        surface.roughness *= detailsMap.Sample(sampleTypeWrap, pIn.Tex).y;
+        surface.roughness *= detailsMap.Sample(sampleTypeWrap, pIn.Tex).x;
     }
     //Remapping roughness to prevent errors on normal distribution
     surface.roughness = remap(surface.roughness, 0.0f, 1.0f, 0.05f, 1.0f);

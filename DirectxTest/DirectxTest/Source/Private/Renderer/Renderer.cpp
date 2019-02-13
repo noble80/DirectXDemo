@@ -391,6 +391,7 @@ void Renderer::RenderFrame(void)
 {
 	RenderShadowMaps();
 	InitializeGeometryPass();
+	m_Context->PSSetShaderResources(6, 1, &m_ShadowMap->shaderResourceView);
 	for(auto& model : *m_ActiveModels)
 	{
 		for(auto& mesh : model.GetMeshes())
@@ -732,7 +733,6 @@ void Renderer::SetShaderResources(Material * mat)
 		if(mat->textures[i])
 			m_Context->PSSetShaderResources(i, 1, &mat->textures[i]->shaderResourceView);
 	}
-	m_Context->PSSetShaderResources(6, 1, &m_ShadowMap->shaderResourceView);
 }
 
 void Renderer::RenderSkybox()

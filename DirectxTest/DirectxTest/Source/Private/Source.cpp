@@ -67,7 +67,7 @@ int WINAPI WinMain(
 
 	//Load up meshes
 	{
-		std::string meshNames[] = {"Sphere01", "CornellBox01", "Rock01", "Flag01_1", "Flag01_2"};
+		std::string meshNames[] = {"GodTree", "Sphere01", "CornellBox01", "Rock01", "Flag01_1", "Flag01_2"};
 		int n = ARRAYSIZE(meshNames);
 		for(int i = 0; i < n; ++i)
 		{
@@ -112,16 +112,37 @@ int WINAPI WinMain(
 
 		Material* rockMat = renderer->CreateMaterial("Rock01");
 		rockMat->vertexShader = defaultVS;
-		rockMat->pixelShader = defaultPS;
+		rockMat->pixelShader = pbrPS;
 		rockMat->diffuseMap = renderer->CreateTextureFromFile("Rock01_LP_albedo");
 		rockMat->normalMap = renderer->CreateTextureFromFile("Rock01_LP_normal");
-		rockMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP | SURFACE_FLAG_HAS_NORMAL_MAP;
-		rockMat->surfaceParameters.specularIntensity = 0.1f;
-		rockMat->surfaceParameters.glossiness = 0.2f;
+		rockMat->detailsMap = renderer->CreateTextureFromFile("Rock01_LP_details");
+		rockMat->IBLDiffuse = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestDiffuseHDR");
+		rockMat->IBLSpecular = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestSpecularHDR");
+		rockMat->IBLIntegration = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestBrdf");
+		rockMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP | SURFACE_FLAG_HAS_NORMAL_MAP | SURFACE_FLAG_HAS_DETAILS_MAP;
+		rockMat->surfaceParameters.roughness = 1.0f;
+		rockMat->surfaceParameters.metallic = 1.0f;
+		rockMat->surfaceParameters.diffuseColor = XMFLOAT3(2.0f, 2.0f, 2.5f);
+
+
+		Material* godTreeMat = renderer->CreateMaterial("GodTree");
+		godTreeMat->vertexShader = defaultVS;
+		godTreeMat->pixelShader = pbrPS;
+		godTreeMat->diffuseMap = renderer->CreateTextureFromFile("GodTree_Diffuse");
+		godTreeMat->normalMap = renderer->CreateTextureFromFile("GodTree_Normal");
+		godTreeMat->detailsMap = renderer->CreateTextureFromFile("GodTree_Details");
+		godTreeMat->IBLDiffuse = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestDiffuseHDR");
+		godTreeMat->IBLSpecular = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestSpecularHDR");
+		godTreeMat->IBLIntegration = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestBrdf");
+		godTreeMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP | SURFACE_FLAG_HAS_NORMAL_MAP | SURFACE_FLAG_HAS_DETAILS_MAP;
+		godTreeMat->surfaceParameters.roughness = 1.0f;
+		godTreeMat->surfaceParameters.diffuseColor = XMFLOAT3(1.5f, 1.5f, 1.5f);
+		godTreeMat->surfaceParameters.metallic = 1.0f;
 
 		Material* waveMat = renderer->CreateMaterial("Wave");
-		waveMat->vertexShader = renderer->CreateVertexShader("Wave");
-		waveMat->pixelShader = defaultPS;
+		waveMat->vertexShader = defaultVS;
+		waveMat->pixelShader = renderer->CreatePixelShader("Bamboozled");
+		waveMat->diffuseMap = rockMat->diffuseMap;
 
 		Material* flagMat = renderer->CreateMaterial("Flag");
 		flagMat->vertexShader = renderer->CreateVertexShader("Flag");
@@ -140,6 +161,10 @@ int WINAPI WinMain(
 		Mesh* rock = renderer->GetResourceManager()->CreateResource<Mesh>("Rock01");
 		rock->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Rock01");
 		rock->material = rockMat;
+
+		Mesh* godTree = renderer->GetResourceManager()->CreateResource<Mesh>("GodTree");
+		godTree->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("GodTree");
+		godTree->material = godTreeMat;
 
 		Mesh* box = renderer->GetResourceManager()->CreateResource<Mesh>("CornellBox01");
 		box->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("CornellBox01");
@@ -183,14 +208,27 @@ int WINAPI WinMain(
 	{
 		Entity* entity = sceneManager->CreateEntity("Rock01");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
-		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
-		transform->SetPosition(XMVectorSet(0.f, 1.5f, 0.f, 1.f));
-		transform->SetScale(XMVectorSet(0.025f, 0.025f, 0.025f, 1.f));
+		transform->SetRotation(Quaternion::FromAngles(0.f, 45.f, 15.f));
+		transform->SetPosition(XMVectorSet(-6.f, 12.f, 0.2f, 1.f));
+		transform->SetScale(XMVectorSet(0.03f, 0.03f, 0.03f, 1.f));
 
 		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Rock01"));
 
 	}
+
+	{
+		Entity* entity = sceneManager->CreateEntity("GodTree");
+		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
+		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
+		transform->SetPosition(XMVectorSet(2.f, 11.3f, 0.1f, 1.f));
+		transform->SetScale(XMVectorSet(2.f, 2.f, 2.f, 1.f));
+
+		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
+		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("GodTree"));
+
+	}
+
 	{
 		Entity* entity = sceneManager->CreateEntity("Box01");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
@@ -217,7 +255,7 @@ int WINAPI WinMain(
 		Entity* entity = sceneManager->CreateEntity("Sphere01");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
 		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
-		transform->SetPosition(XMVectorSet(4.f, 12.f, 3.f, 1.f));
+		transform->SetPosition(XMVectorSet(4.f, 2.f, 3.f, 1.f));
 		transform->SetScale(XMVectorSet(2.f, 2.f, 2.f, 1.f));
 
 		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
@@ -252,7 +290,7 @@ int WINAPI WinMain(
 		DirectionalLightComponent* light = sceneManager->CreateComponent<DirectionalLightComponent>(directionalLightEntity);
 		transform->SetRotation(Quaternion::FromAngles(90.f, 0.f, 0.f));
 		light->SetLightColor(XMVectorSet(0.9f, 0.85f, 0.8f, 0.f));
-		light->SetLightIntensity(1.f);
+		light->SetLightIntensity(3.f);
 	}
 
 	{
