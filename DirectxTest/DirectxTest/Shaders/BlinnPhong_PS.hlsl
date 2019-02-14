@@ -142,6 +142,6 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
         color += lightInfo.directionalLight.color * shadowRatio * BlinnPhong(surface, -lightInfo.directionalLight.direction, viewWS);
     }
 
-    color = pow(color, 1.f / 2.2f);
+    //color = pow(color, 1.f / 2.2f);
     return float4(color, 1.f);
 }

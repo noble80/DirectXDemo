@@ -7,6 +7,7 @@ RenderTexture2D::RenderTexture2D() : Texture2D()
 	renderTargetView = nullptr;
 	d3dstencil = nullptr;
 	depthStencilView = nullptr;
+	depthResourceView = nullptr;
 }
 
 RenderTexture2D::~RenderTexture2D()
@@ -25,4 +26,6 @@ void RenderTexture2D::Release()
 		d3dstencil->Release();
 	if(depthStencilView)
 		depthStencilView->Release();
+	if(depthResourceView)
+		depthResourceView->Release();
 }

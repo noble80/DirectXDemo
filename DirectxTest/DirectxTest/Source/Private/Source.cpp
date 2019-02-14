@@ -122,7 +122,7 @@ int WINAPI WinMain(
 		rockMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP | SURFACE_FLAG_HAS_NORMAL_MAP | SURFACE_FLAG_HAS_DETAILS_MAP;
 		rockMat->surfaceParameters.roughness = 1.0f;
 		rockMat->surfaceParameters.metallic = 1.0f;
-		rockMat->surfaceParameters.diffuseColor = XMFLOAT3(2.0f, 2.0f, 2.5f);
+		rockMat->surfaceParameters.diffuseColor = XMFLOAT3(1.0f, 1.0f, 1.0f);
 
 
 		Material* godTreeMat = renderer->CreateMaterial("GodTree");
@@ -136,7 +136,7 @@ int WINAPI WinMain(
 		godTreeMat->IBLIntegration = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestBrdf");
 		godTreeMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP | SURFACE_FLAG_HAS_NORMAL_MAP | SURFACE_FLAG_HAS_DETAILS_MAP;
 		godTreeMat->surfaceParameters.roughness = 1.0f;
-		godTreeMat->surfaceParameters.diffuseColor = XMFLOAT3(1.5f, 1.5f, 1.5f);
+		godTreeMat->surfaceParameters.diffuseColor = XMFLOAT3(1.0f, 1.0f, 1.0f);
 		godTreeMat->surfaceParameters.metallic = 1.0f;
 
 		Material* waveMat = renderer->CreateMaterial("Wave");
@@ -202,7 +202,8 @@ int WINAPI WinMain(
 		transform->SetPosition(XMVectorSet(0.f, 5.f, -25.f, 1.f));
 
 		CameraComponent* camera = sceneManager->CreateComponent<CameraComponent>(cameraEntity);
-		camera->SetProjectionMatrix(90.f, WIDTH / (FLOAT)HEIGHT, 0.01f, 100.0f);
+		Vector2 dimensions = window->GetDimensions();
+		camera->SetProjectionMatrix(90.f, dimensions, 0.01f, 100.0f);
 	}
 
 	{
@@ -290,7 +291,7 @@ int WINAPI WinMain(
 		DirectionalLightComponent* light = sceneManager->CreateComponent<DirectionalLightComponent>(directionalLightEntity);
 		transform->SetRotation(Quaternion::FromAngles(90.f, 0.f, 0.f));
 		light->SetLightColor(XMVectorSet(0.9f, 0.85f, 0.8f, 0.f));
-		light->SetLightIntensity(3.f);
+		light->SetLightIntensity(7.f);
 	}
 
 	{
@@ -482,7 +483,7 @@ int WINAPI WinMain(
 		}
 
 		renderer->SetActiveModels(sceneManager->GetComponents<MeshComponent>());
-		renderer->UpdateLightBuffers(XMFLOAT3(0.1f, 0.1f, 0.1f), sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
+		renderer->UpdateLightBuffers(XMFLOAT3(0.4f, 0.4f, 0.4f), sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
 		renderer->UpdateSceneBuffer(totalTime);
 		renderer->RenderFrame();
 

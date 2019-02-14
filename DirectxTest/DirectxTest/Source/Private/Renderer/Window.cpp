@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Renderer/Window.h"
 #include "Input\CoreInput.h"
+#include "Renderer\Renderer.h"
 
 #define WIN32_LEAN_AND_MEAN //Gets rid of bloat on Windows.h
 #include <Windows.h> 
@@ -12,6 +13,8 @@ LRESULT CALLBACK WindowProc(
 	UINT message, // message on what to do 
 	WPARAM wParam, //first parameter
 	LPARAM lParam); //second parameter
+
+Window* window;
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -27,8 +30,24 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		case WM_INPUT:
 		{
 			CoreInput::GatherInput(hWnd, message, wParam, lParam);
+			break;
 		}
-		break;
+		case WM_SIZE:
+		{
+			if(window)
+			{
+				window->HandleResize(wParam, lParam);
+			}
+			break;
+		}
+		case WM_WINDOWPOSCHANGED:
+		{
+			if(window)
+			{
+				window->HandleFullscreenChange(wParam, lParam);
+			}
+			break;
+		}
 	}
 
 	// Any other messages, handle the default way
@@ -38,6 +57,8 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 Window::Window()
 {
 	m_WindowHandle = nullptr;
+	m_WindowHandle = nullptr;
+	m_Renderer = nullptr;
 }
 
 
@@ -60,6 +81,7 @@ bool Window::Initialize(Vector2 dimensions, uint32_t flags, std::wstring appName
 	// zero out the win info struct
 	ZeroMemory(&winInfo, sizeof(WNDCLASSEX));
 
+	window = this;
 	// Set win info struct data
 	winInfo.cbSize = sizeof(WNDCLASSEX); //sets size of struct. Must because of backwards compatibility
 	winInfo.style = CS_HREDRAW | CS_VREDRAW; //redraws whole window on horizontal or vertical modification
@@ -94,14 +116,13 @@ bool Window::Initialize(Vector2 dimensions, uint32_t flags, std::wstring appName
 	RECT wr = {0, 0, static_cast<int>(m_Dimensions.x), static_cast<int>(m_Dimensions.y)};    // set the size
 	AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE);    // adjust the size
 
-	posX = GetSystemMetrics(SM_CXSCREEN) / 2 - (wr.right - wr.left)/2;
-	posY = GetSystemMetrics(SM_CYSCREEN) / 2 - (wr.bottom - wr.top)/2;
+	posX = GetSystemMetrics(SM_CXSCREEN) / 2 - (wr.right - wr.left) / 2;
+	posY = GetSystemMetrics(SM_CYSCREEN) / 2 - (wr.bottom - wr.top) / 2;
 
 	// create the window and use the result as the handle
 	m_WindowHandle = CreateWindowEx(WS_EX_APPWINDOW,
 		m_AppName.c_str(),    // Window class name again
 		m_AppName.c_str(),  // window title text
-		//WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_POPUP,    // style. Being later than extended style may be related to WINAPI
 		WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU | WS_SIZEBOX,
 		posX,    // x pos
 		posY,    // y pos
@@ -159,4 +180,29 @@ bool Window::Shutdown()
 	m_HInstance = nullptr;
 
 	return true;
+}
+
+void Window::HandleResize(WPARAM wParam, LPARAM lParam)
+{
+	if(wParam == 2 || wParam == 0)
+	{
+		m_Dimensions.x = static_cast<float>(LOWORD(lParam));
+		m_Dimensions.y = static_cast<float>(HIWORD(lParam));
+
+		if(m_Renderer)
+			m_Renderer->ResizeSwapChain();
+	}
+}
+
+void Window::HandleFullscreenChange(WPARAM wParam, LPARAM lParam)
+{
+	if(m_Renderer && m_Renderer->FullScreenModeSwitched())
+	{
+		m_Dimensions.x = GetSystemMetrics(SM_CXSCREEN);
+		m_Dimensions.y = GetSystemMetrics(SM_CYSCREEN);
+
+		lParam = MAKELPARAM(m_Dimensions.x, m_Dimensions.y);
+
+		HandleResize(0, lParam);
+	}
 }

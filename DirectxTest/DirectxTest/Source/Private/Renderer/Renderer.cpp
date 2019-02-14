@@ -37,7 +37,10 @@ Renderer::Renderer()
 	m_Swapchain = nullptr;
 	m_Device = nullptr;
 	m_Context = nullptr;
-	m_RenderTargetView = nullptr;
+	m_FinalRenderTargetView = nullptr;
+	m_ActiveCamera = nullptr;
+	m_IntermediateSceneTexture = nullptr;
+	m_ActiveCameraViewport = new D3D11_VIEWPORT{};
 }
 
 
@@ -48,11 +51,12 @@ Renderer::~Renderer()
 bool Renderer::Initialize(Window * window)
 {
 	HRESULT hr = S_OK;
-
-	Vector2 dimensions = window->GetDimensions();
+	m_Window = window;
 
 	m_ResourceManager = new ResourceManager;
 	m_ResourceManager->Initialize();
+
+	Vector2 dimensions = window->GetDimensions();
 
 #pragma region DEVICE_CREATION
 	{
@@ -149,100 +153,33 @@ bool Renderer::Initialize(Window * window)
 	}
 #pragma endregion SWAPCHAIN_CREATION
 
-#pragma region BACKBUFFER_CREATION
-	/* Backbuffer */
-	{
-		// get the address of the back buffer
-		ComPtr<ID3D11Texture2D> backBuffer;
-		hr = m_Swapchain->GetBuffer(
-			0, // we are using one backbuffer so we only need the first one
-			__uuidof(ID3D11Texture2D), // get ID of texture type
-			&backBuffer);
+	InitializeSwapChain();
 
-		if(FAILED(hr))
-			return false;
+	D3D11_DEPTH_STENCIL_DESC depthStencilDesc{};
+	// Set up the description of the stencil state.
+	depthStencilDesc.DepthEnable = true;
+	depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	depthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS;
 
-		// use the back buffer address to create the render target
-		hr = m_Device->CreateRenderTargetView(backBuffer.Get(), NULL, &m_RenderTargetView);
+	depthStencilDesc.StencilEnable = true;
+	depthStencilDesc.StencilReadMask = 0xFF;
+	depthStencilDesc.StencilWriteMask = 0xFF;
 
-		if(FAILED(hr))
-			return false;
-	}
-#pragma endregion BACKBUFFER_CREATION
+	// Stencil operations if pixel is front-facing.
+	depthStencilDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	depthStencilDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_INCR;
+	depthStencilDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+	depthStencilDesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
 
-#pragma region STENCIL_CREATION
-	/* Stencil */
-	{
-		// Create depth stencil texture
-		ComPtr<ID3D11Texture2D> stencilTx;
-		D3D11_TEXTURE2D_DESC descDepth{};
-		descDepth.Width = static_cast<UINT>(dimensions.x);
-		descDepth.Height = static_cast<UINT>(dimensions.y);
-		descDepth.MipLevels = 1;
-		descDepth.ArraySize = 1;
-		descDepth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		descDepth.SampleDesc.Count = 1;
-		descDepth.SampleDesc.Quality = 0;
-		descDepth.Usage = D3D11_USAGE_DEFAULT;
-		descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-		descDepth.CPUAccessFlags = 0;
-		descDepth.MiscFlags = 0;
-		hr = m_Device->CreateTexture2D(&descDepth, nullptr, &stencilTx);
-		if(FAILED(hr))
-			return hr;
-		
-		// Create the depth stencil view
-		D3D11_DEPTH_STENCIL_VIEW_DESC descDSV{};
-		descDSV.Format = descDepth.Format;
-		descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-		descDSV.Texture2D.MipSlice = 0;
-		hr = m_Device->CreateDepthStencilView(stencilTx.Get(), &descDSV, &m_DepthStencilView);
-		if(FAILED(hr))
-			return hr;
+	// Stencil operations if pixel is back-facing.
+	depthStencilDesc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	depthStencilDesc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_DECR;
+	depthStencilDesc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+	depthStencilDesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+	m_Device->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilState);
 
-		D3D11_DEPTH_STENCIL_DESC depthStencilDesc{};
-		// Set up the description of the stencil state.
-		depthStencilDesc.DepthEnable = true;
-		depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-		depthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS;
-
-		depthStencilDesc.StencilEnable = true;
-		depthStencilDesc.StencilReadMask = 0xFF;
-		depthStencilDesc.StencilWriteMask = 0xFF;
-
-		// Stencil operations if pixel is front-facing.
-		depthStencilDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
-		depthStencilDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_INCR;
-		depthStencilDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
-		depthStencilDesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
-
-		// Stencil operations if pixel is back-facing.
-		depthStencilDesc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
-		depthStencilDesc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_DECR;
-		depthStencilDesc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
-		depthStencilDesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
-		m_Device->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilState);
-
-		depthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
-		m_Device->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilSkyState);
-	}
-#pragma endregion STENCIL_CREATION
-
-#pragma region VIEWPORT_CREATION
-	/* Viewport */
-
-	// Set the viewport
-	m_ActiveCameraViewport = new D3D11_VIEWPORT{};
-
-	m_ActiveCameraViewport->TopLeftX = 0;
-	m_ActiveCameraViewport->TopLeftY = 0;
-
-	m_ActiveCameraViewport->Width = dimensions.x;
-	m_ActiveCameraViewport->Height = dimensions.y;
-
-	m_ActiveCameraViewport->MaxDepth = 1.0f;
-	m_ActiveCameraViewport->MinDepth = 0.0f;
-#pragma endregion VIEWPORT_CREATION
+	depthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+	m_Device->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilSkyState);
 
 	// Create the sample state wrap
 	{
@@ -297,7 +234,7 @@ bool Renderer::Initialize(Window * window)
 		hr = m_Device->CreateSamplerState(&sampDesc, &m_SamplerSky);
 		if(FAILED(hr))
 			return hr;
-		
+
 		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -326,6 +263,8 @@ bool Renderer::Initialize(Window * window)
 	CreateRasterizerStates();
 	InitializeConstantBuffers();
 	InitializeDefaultShaders();
+
+	m_Window->m_Renderer = this;
 
 	return true;
 }
@@ -364,11 +303,12 @@ bool Renderer::InitializeGeometryPass()
 {
 	// Clear the back buffer
 	float color[4] = {0.0f, 0.2f, 0.4f, 1.0f};
-	m_Context->ClearRenderTargetView(m_RenderTargetView.Get(), color);
+	m_Context->ClearRenderTargetView(m_FinalRenderTargetView.Get(), color);
+	m_Context->ClearRenderTargetView(m_IntermediateSceneTexture->renderTargetView, color);
 
 	// Clear the depth buffer to 1.0 (max depth)
 	m_Context->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
-	m_Context->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), m_DepthStencilView.Get());
+	m_Context->OMSetRenderTargets(1, &m_IntermediateSceneTexture->renderTargetView, m_DepthStencilView.Get());
 	m_Context->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
 	m_Context->RSSetViewports(1, m_ActiveCameraViewport);
 
@@ -400,7 +340,7 @@ void Renderer::RenderFrame(void)
 		}
 	}
 	RenderSkybox();
-
+	RenderPostProcessing();
 	ID3D11ShaderResourceView* null = nullptr;
 	m_Context->PSSetShaderResources(6, 1, &null);
 }
@@ -459,6 +399,8 @@ GeometryBuffer* Renderer::CreateGeometryBuffer(std::string name, std::vector<Ver
 	return nullptr;
 }
 
+
+
 VertexShader * Renderer::CreateVertexShader(std::string name)
 {
 	std::vector<std::byte> VSBytes;
@@ -485,6 +427,29 @@ VertexShader * Renderer::CreateVertexShader(std::string name)
 
 				if(SUCCEEDED(hr))
 					return vs;
+			}
+		}
+		vs->Release();
+		GetResourceManager()->RemoveResource(vs);
+	}
+
+	return nullptr;
+}
+
+VertexShader * Renderer::CreateVertexShaderPostProcess(std::string name)
+{
+	std::vector<std::byte> VSBytes;
+
+	VertexShader* vs = GetResourceManager()->CreateResource<VertexShader>(name);
+	std::string fullPath = "../Shaders/" + name + "_VS.cso";
+	if(vs)
+	{
+		if(ShaderUtilities::LoadShaderFromFile(fullPath, VSBytes))
+		{
+			HRESULT hr = m_Device->CreateVertexShader(VSBytes.data(), VSBytes.size(), nullptr, &vs->d3dShader);
+			if(SUCCEEDED(hr))
+			{
+				return vs;
 			}
 		}
 		vs->Release();
@@ -541,7 +506,7 @@ void Renderer::DrawDebugShape(GeometryBuffer * shape, const DirectX::XMMATRIX & 
 {
 	assert(DebugHelpers::DebugMat != nullptr && shape != nullptr);
 
-	m_Context->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), nullptr);
+	m_Context->OMSetRenderTargets(1, m_FinalRenderTargetView.GetAddressOf(), nullptr);
 
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
@@ -604,6 +569,196 @@ void Renderer::SetDirectionalLight(DirectionalLightComponent * light)
 
 }
 
+bool Renderer::FullScreenModeSwitched()
+{
+	static BOOL result = false;
+	BOOL newResult;
+	m_Swapchain->GetFullscreenState(&newResult, nullptr);
+
+	if(result != newResult)
+	{
+		result = newResult;
+		return true;
+	}
+	return false;
+}
+
+bool Renderer::ResizeSwapChain()
+{
+	Vector2 dimensions = m_Window->GetDimensions();
+
+	if(dimensions.x <= 0.f || dimensions.y <= 0.f)
+		return false;
+
+	m_Context->OMSetRenderTargets(0, 0, 0);
+	m_FinalRenderTargetView.Reset();
+	m_DepthStencilView.Reset();
+	HRESULT hr = m_Swapchain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
+
+	if(FAILED(hr))
+		return false;
+
+	if(!InitializeSwapChain())
+		return false;
+
+	if(m_ActiveCamera)
+	{
+		if(m_Window)
+			m_ActiveCamera->UpdateAspectRatio(m_Window->GetDimensions());
+	}
+
+	RenderFrame();
+
+	return true;
+}
+
+bool Renderer::InitializeSwapChain()
+{
+	HRESULT hr;
+	Vector2 dimensions = m_Window->GetDimensions();
+#pragma region BACKBUFFER_CREATION
+	/* Backbuffer */
+	ComPtr<ID3D11Texture2D> backBuffer;
+	{
+		// get the address of the back buffer
+		hr = m_Swapchain->GetBuffer(
+			0, // we are using one backbuffer so we only need the first one
+			__uuidof(ID3D11Texture2D), // get ID of texture type
+			&backBuffer);
+
+		if(FAILED(hr))
+			return false;
+
+		// use the back buffer address to create the render target
+		hr = m_Device->CreateRenderTargetView(backBuffer.Get(), NULL, &m_FinalRenderTargetView);
+
+		if(FAILED(hr))
+			return false;
+	}
+#pragma endregion BACKBUFFER_CREATION
+
+
+#pragma region STENCIL_CREATION
+	/* Stencil */
+	ComPtr<ID3D11Texture2D> stencilTx;
+	{
+		// Create depth stencil texture
+		D3D11_TEXTURE2D_DESC descDepth{};
+		descDepth.Width = static_cast<UINT>(dimensions.x);
+		descDepth.Height = static_cast<UINT>(dimensions.y);
+		descDepth.MipLevels = 1;
+		descDepth.ArraySize = 1;
+		descDepth.Format = DXGI_FORMAT_R24G8_TYPELESS;
+		descDepth.SampleDesc.Count = 1;
+		descDepth.SampleDesc.Quality = 0;
+		descDepth.Usage = D3D11_USAGE_DEFAULT;
+		descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+		descDepth.CPUAccessFlags = 0;
+		descDepth.MiscFlags = 0;
+		hr = m_Device->CreateTexture2D(&descDepth, nullptr, &stencilTx);
+		if(FAILED(hr))
+			return hr;
+
+		// Create the depth stencil view
+		D3D11_DEPTH_STENCIL_VIEW_DESC descDSV{};
+		descDSV.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+		descDSV.Texture2D.MipSlice = 0;
+		hr = m_Device->CreateDepthStencilView(stencilTx.Get(), &descDSV, &m_DepthStencilView);
+		if(FAILED(hr))
+			return hr;
+	#pragma endregion STENCIL_CREATION
+	}
+
+
+#pragma region VIEWPORT_CREATION
+	/* Viewport */
+
+	// Set the viewport
+	m_ActiveCameraViewport->TopLeftX = 0;
+	m_ActiveCameraViewport->TopLeftY = 0;
+
+	m_ActiveCameraViewport->Width = dimensions.x;
+	m_ActiveCameraViewport->Height = dimensions.y;
+
+	m_ActiveCameraViewport->MaxDepth = 1.0f;
+	m_ActiveCameraViewport->MinDepth = 0.0f;
+#pragma endregion VIEWPORT_CREATION
+
+	CreateIntermediateSceneTexture(backBuffer.Get(), stencilTx.Get());
+
+	return true;
+}
+
+bool Renderer::CreateIntermediateSceneTexture(ID3D11Texture2D* backBuffer, ID3D11Texture2D* stencilTx)
+{
+	if(m_IntermediateSceneTexture)
+		m_IntermediateSceneTexture->Release();
+	else
+		m_IntermediateSceneTexture = GetResourceManager()->CreateResource<RenderTexture2D>("IntermediateScene");
+	D3D11_TEXTURE2D_DESC textureDesc;
+	backBuffer->GetDesc(&textureDesc);
+	// Setup the render target texture description.
+
+	textureDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+	// Create the render target texture.
+	HRESULT hr = m_Device->CreateTexture2D(&textureDesc, NULL, &m_IntermediateSceneTexture->d3dtexture);
+
+	if(SUCCEEDED(hr))
+	{
+		D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc{};
+		renderTargetViewDesc.Format = textureDesc.Format;
+		renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		renderTargetViewDesc.Texture2D.MipSlice = 0;
+
+		hr = m_Device->CreateRenderTargetView(m_IntermediateSceneTexture->d3dtexture, &renderTargetViewDesc, &m_IntermediateSceneTexture->renderTargetView);
+
+		if(SUCCEEDED(hr))
+		{
+			D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc{};
+			viewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+			viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+			viewDesc.Texture2D.MipLevels = 1;
+
+			hr = m_Device->CreateShaderResourceView(stencilTx, &viewDesc, &m_IntermediateSceneTexture->depthResourceView);
+			if(FAILED(hr))
+			{
+				return false;
+			}
+			viewDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
+			hr = m_Device->CreateShaderResourceView(m_IntermediateSceneTexture->d3dtexture, &viewDesc, &m_IntermediateSceneTexture->shaderResourceView);
+			if(FAILED(hr))
+			{
+				return false;
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void Renderer::RenderPostProcessing()
+{
+	m_Context->OMSetRenderTargets(1, m_FinalRenderTargetView.GetAddressOf(), nullptr);
+	m_Context->RSSetState(m_SceneRasterizerState.Get());
+	m_Context->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
+
+	m_Context->IASetInputLayout(nullptr);
+	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	m_Context->VSSetShader(PostProcessVS->d3dShader, nullptr, 0);
+	m_Context->PSSetShader(PostProcessPS->d3dShader, nullptr, 0);
+	m_Context->PSSetSamplers(3, 1, m_SamplerNearest.GetAddressOf());
+	m_Context->PSSetShaderResources(0, 1, &m_IntermediateSceneTexture->shaderResourceView);
+	m_Context->PSSetShaderResources(1, 1, &m_IntermediateSceneTexture->depthResourceView);
+
+	m_Context->Draw(4, 0);
+}
+
 void Renderer::RenderShadowMaps()
 {
 	CLightInfoBuffer* buffer = static_cast<CLightInfoBuffer*>(m_LightInfoBuffer->cpu);
@@ -614,6 +769,8 @@ void Renderer::RenderShadowMaps()
 
 void Renderer::InitializeDefaultShaders()
 {
+	PostProcessPS = CreatePixelShader("PostProcess");
+	PostProcessVS = CreateVertexShaderPostProcess("PostProcess");
 }
 
 void Renderer::InitializeConstantBuffers()
@@ -638,7 +795,7 @@ void Renderer::InitializeShadowMaps(float resolution)
 		textureDesc.Height = (UINT)resolution;
 		textureDesc.MipLevels = 1;
 		textureDesc.ArraySize = 1;
-		textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		textureDesc.SampleDesc.Count = 1;
 		textureDesc.Usage = D3D11_USAGE_DEFAULT;
 		textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
@@ -877,7 +1034,7 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, bool NoPixelShader
 	}
 	RenderSkybox();
 
-	m_Context->OMSetRenderTargets(1, &output->renderTargetView, nullptr);
+	m_Context->OMSetRenderTargets(0, 0, nullptr);
 }
 
 ID3D11Buffer* Renderer::CreateD3DBuffer(D3D11_BUFFER_DESC* desc, D3D11_SUBRESOURCE_DATA* InitData)

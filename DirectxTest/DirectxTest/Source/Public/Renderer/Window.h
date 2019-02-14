@@ -8,8 +8,24 @@ constexpr auto WINDOW_FLAGS_FULLSCREEN = 0x1;
 struct HINSTANCE__; // Forward or never
 typedef HINSTANCE__* HINSTANCE;
 
+#if defined(_WIN64)
+typedef __int64 INT_PTR, *PINT_PTR;
+typedef unsigned __int64 UINT_PTR, *PUINT_PTR;
+typedef __int64 LONG_PTR, *PLONG_PTR;
+typedef unsigned __int64 ULONG_PTR, *PULONG_PTR;
+#else
+typedef __w64 int INT_PTR, *PINT_PTR;
+typedef __w64 unsigned int UINT_PTR, *PUINT_PTR;
+typedef __w64 long LONG_PTR, *PLONG_PTR;
+typedef __w64 unsigned long ULONG_PTR, *PULONG_PTR;
+#endif
+
+typedef UINT_PTR            WPARAM;
+typedef LONG_PTR            LPARAM;
+typedef LONG_PTR            LRESULT;
 struct HWND__;
 typedef HWND__* HWND;
+
 #endif
 
 class Renderer;
@@ -19,6 +35,8 @@ public:
 	Window();
 	~Window();
 
+	friend class Renderer;
+
 	bool Initialize(Vector2 dimensions, uint32_t flags, std::wstring appName);
 	bool Update();
 	bool Shutdown();
@@ -27,11 +45,18 @@ public:
 
 	inline HWND GetHandle() { return m_WindowHandle; };
 	Vector2 GetDimensions() { return m_Dimensions; }
+
+	void HandleResize(WPARAM wParam, LPARAM lParam);
+	void HandleFullscreenChange(WPARAM wParam, LPARAM lParam);
+
+	inline Renderer* GetRenderer() { return m_Renderer; };
 private:
+
 	Vector2 m_Dimensions;
 	uint32_t m_WindowFlags;
 	HWND m_WindowHandle;
 	HINSTANCE m_HInstance;
 	std::wstring m_AppName;
+	Renderer* m_Renderer;
 };
 

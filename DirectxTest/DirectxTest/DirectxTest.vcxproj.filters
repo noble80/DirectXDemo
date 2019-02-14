@@ -8,6 +8,7 @@
     <FxCompile Include="Shaders\Sky_VS.hlsl" />
     <FxCompile Include="Shaders\Sky_PS.hlsl" />
     <FxCompile Include="Shaders\PBR_PS.hlsl" />
+    <FxCompile Include="Shaders\Bamboozled_PS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />
@@ -91,6 +92,7 @@
     <ClInclude Include="Source\Public\Renderer\ShaderContainers.h" />
     <ClInclude Include="Shaders\BlinnPhong_Include.hlsl" />
     <ClInclude Include="Shaders\PBR_Include.hlsl" />
-    <ClInclude Include="Shaders\Bamboozled.h" />
+    <ClInclude Include="Shaders\PostProcess_PS.hlsl" />
+    <ClInclude Include="Shaders\PostProcess_VS.hlsl" />
   </ItemGroup>
 </Project>

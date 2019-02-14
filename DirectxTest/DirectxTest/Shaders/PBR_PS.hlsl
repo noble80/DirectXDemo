@@ -169,7 +169,7 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
     }
 
     // Reinhard operator. Supposedly preserves HDR values better
-    color = color / (color + 1.f);
-    color = pow(color, 1.f / 2.2f);
+    //color = color / (color + 1.f);
+    //color = pow(color, 1.f / 2.2f);
     return float4(color, 1.f);
 }

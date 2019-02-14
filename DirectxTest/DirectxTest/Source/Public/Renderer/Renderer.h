@@ -37,6 +37,7 @@ struct Vertex;
 struct D3D11_BUFFER_DESC;
 struct D3D11_SUBRESOURCE_DATA;
 struct SurfaceProperties;
+struct ID3D11Texture2D;
 
 struct VertexShader;
 struct PixelShader;
@@ -47,6 +48,8 @@ class Renderer
 public:
 	Renderer();
 	~Renderer();
+
+	friend class Window;
 
 	bool Initialize(Window* window);
 	bool Update();
@@ -67,6 +70,7 @@ public:
 	GeometryBuffer* CreateGeometryBuffer(std::string name, std::vector<Vertex>* vertices, std::vector<uint32_t> indices);
 
 	VertexShader* CreateVertexShader(std::string path);
+	VertexShader* CreateVertexShaderPostProcess(std::string path);
 	PixelShader* CreatePixelShader(std::string path);
 	Material* CreateMaterial(std::string name);
 
@@ -84,7 +88,15 @@ public:
 	inline void SetActiveModels(std::vector<MeshComponent>* models) { m_ActiveModels = models; };
 	void SetDirectionalLight(DirectionalLightComponent* light);
 
+	bool FullScreenModeSwitched();
+
+	bool ResizeSwapChain();
 private:
+	bool InitializeSwapChain();
+	bool CreateIntermediateSceneTexture(ID3D11Texture2D* backBuffer, ID3D11Texture2D* stencilTx);
+	Window* m_Window;
+
+	void RenderPostProcessing();
 	void RenderShadowMaps();
 	void InitializeDefaultShaders();
 	void InitializeConstantBuffers();
@@ -96,7 +108,7 @@ private:
 	Microsoft::WRL::ComPtr<IDXGISwapChain1>				m_Swapchain;		// ptr to swap chain
 	Microsoft::WRL::ComPtr<ID3D11Device1>				m_Device;			// ptr to device
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext1>		m_Context;			// ptr to device context
-	Microsoft::WRL::ComPtr<ID3D11RenderTargetView>		m_RenderTargetView;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView>		m_FinalRenderTargetView;
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilView>		m_DepthStencilView;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_ShadowSampler;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_SamplerLinearWrap;
@@ -120,6 +132,7 @@ private:
 	CameraComponent*									m_ActiveCamera;
 	std::vector<MeshComponent>*							m_ActiveModels;
 	RenderTexture2D*									m_ShadowMap;
+	RenderTexture2D*									m_IntermediateSceneTexture;
 	DirectionalLightComponent*							m_DirectionalLight;
 
 	D3D11_VIEWPORT*										m_ActiveCameraViewport;
@@ -127,5 +140,8 @@ private:
 	ResourceManager*									m_ResourceManager;
 	DirectX::XMMATRIX									m_ViewProjection;
 	DirectX::XMMATRIX									m_View;
+
+	VertexShader*										PostProcessVS;
+	PixelShader*										PostProcessPS;
 };
 

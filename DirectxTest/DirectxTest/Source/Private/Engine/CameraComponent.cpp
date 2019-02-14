@@ -21,14 +21,31 @@ void CameraComponent::Initialize(Entity * owner)
 	m_Transform = m_Owner->GetComponent<TransformComponent>();
 }
 
-void CameraComponent::SetProjectionMatrix(float FOV, float aspectRatio, float nearZ, float farZ)
+void CameraComponent::SetProjectionMatrix(float FOV, Vector2 dimensions, float nearZ, float farZ)
 {
-	float verticalFOV = XMConvertToRadians(FOV/aspectRatio);
-	m_ProjectionMatrix = XMMatrixPerspectiveFovLH(verticalFOV, aspectRatio, nearZ, farZ);
 	m_FOV = FOV;
-	m_AspectRatio = aspectRatio;
+	m_AspectRatio = dimensions.x / dimensions.y;;
 	m_NearZ = nearZ;
 	m_FarZ = farZ;
+	RebuildProjectionMatrix();
+}
+
+void CameraComponent::RebuildProjectionMatrix()
+{
+	float verticalFOV = XMConvertToRadians(m_FOV / m_AspectRatio);
+	m_ProjectionMatrix = XMMatrixPerspectiveFovLH(verticalFOV, m_AspectRatio, m_NearZ, m_FarZ);
+}
+
+void CameraComponent::UpdateFOV(float FOV)
+{
+	m_FOV = FOV;
+	RebuildProjectionMatrix();
+}
+
+void CameraComponent::UpdateAspectRatio(Vector2 dimensions)
+{
+	m_AspectRatio = dimensions.x / dimensions.y;
+	RebuildProjectionMatrix();
 }
 
 Vector4 CameraComponent::GetCameraPosition() const

@@ -21,5 +21,7 @@ float3 BlinnPhong(SurfaceBlinnPhong surface, float3 lightDir, float3 viewWS)
     float3 H = normalize(lightDir - viewWS);
     float specular = specularIntensity * pow(saturate(dot(H, normal)), specularPower);
 
-    return (diffuse + specular)*LDotN;
+    float specularNormalizationFactor = (specularPower + 8) / (8 * PI);
+
+    return (diffuse / PI + specular * specularNormalizationFactor) * LDotN;
 }

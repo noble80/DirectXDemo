@@ -14,11 +14,14 @@ public:
 
 	virtual void Initialize(Entity* owner) override;
 
-	void SetProjectionMatrix(float FOV, float aspectRatio, float nearZ, float farZ);
+	void SetProjectionMatrix(float FOV, Vector2 screenDimensions, float nearZ, float farZ);
 	inline const DirectX::XMMATRIX& GetOrtographicProjectionMatrix() const
 	{
 		return m_ProjectionMatrix;
 	};
+	void RebuildProjectionMatrix();
+	void UpdateFOV(float FOV);
+	void UpdateAspectRatio(Vector2 dimensions);
 
 	inline float GetFOV() const { return m_FOV; };
 
