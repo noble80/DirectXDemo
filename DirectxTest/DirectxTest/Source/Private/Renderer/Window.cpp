@@ -32,11 +32,11 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 			CoreInput::GatherInput(hWnd, message, wParam, lParam);
 			break;
 		}
-		case WM_SIZE:
+		case WM_EXITSIZEMOVE:
 		{
 			if(window)
 			{
-				window->HandleResize(wParam, lParam);
+				window->HandleResize();
 			}
 			break;
 		}
@@ -44,7 +44,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		{
 			if(window)
 			{
-				window->HandleFullscreenChange(wParam, lParam);
+				window->HandleFullscreenChange(lParam, wParam);
 			}
 			break;
 		}
@@ -123,7 +123,7 @@ bool Window::Initialize(Vector2 dimensions, uint32_t flags, std::wstring appName
 	m_WindowHandle = CreateWindowEx(WS_EX_APPWINDOW,
 		m_AppName.c_str(),    // Window class name again
 		m_AppName.c_str(),  // window title text
-		WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU | WS_SIZEBOX,
+		WS_OVERLAPPED | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_SIZEBOX,
 		posX,    // x pos
 		posY,    // y pos
 		wr.right - wr.left,    // width of the window
@@ -182,27 +182,19 @@ bool Window::Shutdown()
 	return true;
 }
 
-void Window::HandleResize(WPARAM wParam, LPARAM lParam)
+void Window::HandleResize()
 {
-	if(wParam == 2 || wParam == 0)
-	{
-		m_Dimensions.x = static_cast<float>(LOWORD(lParam));
-		m_Dimensions.y = static_cast<float>(HIWORD(lParam));
-
-		if(m_Renderer)
-			m_Renderer->ResizeSwapChain();
-	}
+	if(m_Renderer)
+		m_Renderer->ResizeSwapChain();
 }
 
-void Window::HandleFullscreenChange(WPARAM wParam, LPARAM lParam)
+void Window::HandleFullscreenChange(LPARAM lparam, WPARAM wparam)
 {
-	if(m_Renderer && m_Renderer->FullScreenModeSwitched())
+	if(m_Renderer)
 	{
-		m_Dimensions.x = GetSystemMetrics(SM_CXSCREEN);
-		m_Dimensions.y = GetSystemMetrics(SM_CYSCREEN);
-
-		lParam = MAKELPARAM(m_Dimensions.x, m_Dimensions.y);
-
-		HandleResize(0, lParam);
+		bool fsChange = m_Renderer->FullScreenModeSwitched();
+		
+		if(fsChange)
+			HandleResize();
 	}
 }

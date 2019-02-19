@@ -1,10 +1,17 @@
 #pragma once
 
+#include "Constants.hlsl"
+
 #define POINTLIGHT_MAX 10
 #define SPOTLIGHT_MAX 10
+#define CASCADES_MAX 3
 
-static const float PI = 3.14159265f;
+SamplerState sampleTypeWrap : register(s0);
+SamplerComparisonState sampleTypeShadows : register(s1);
+SamplerState sampleTypeClamp : register(s2);
+SamplerState sampleTypeNearest : register(s3);
 
+Texture2DArray cascadeShadowmap : register(t6);
 
 
 struct PointLight
@@ -23,9 +30,16 @@ struct DirectionalLight
     float padding2;
 };
 
+struct Cascade
+{
+    matrix lightSpace;
+    float cascadeSplit;
+    float3 padding;
+};
+
 struct DirectionalShadowInfo
 {
-    matrix viewProj;
+    Cascade cascades[CASCADES_MAX];
     float bias;
     float normalOffset;
     float resolution;
@@ -59,26 +73,30 @@ float remap(float value, float low1, float high1, float low2, float high2)
     return low2 + (value - low1) * (high2 - low2) / (high1 - low1);
 }
 
-float samplePCF(float2 uv, float x, float y, float z0, Texture2D shadowMap, SamplerComparisonState samp, float txlSize)
+float samplePCF(float2 uv, int currCascade, float2 offset, float z0, float txlSize)
 {
-    float2 coords = uv + float2(x, y) * txlSize;
-    float z = z0;
-
-    return shadowMap.SampleCmpLevelZero(samp, coords, z);
+    float2 coords = uv + offset * txlSize;
+    return cascadeShadowmap.SampleCmpLevelZero(sampleTypeShadows, float3(coords, currCascade), z0);
 }
 
-float PCFBlur(float2 uv, int samples, float z0, Texture2D shadowMap, SamplerComparisonState samp, float txlSize)
+float2 randomFloat(float4 seed)
+{
+    float d = dot(seed, float4(12.9898, 78.233, 45.164, 94.673));
+    return frac(sin(d) * 43758.5453);
+}
+
+float PCFBlur(float2 uv, int currCascade, int samples, float z0, float txlSize, float3 seed)
 {
     float output = 0.f;
-    for (int u = -samples; u <= samples; u++)
+    for (int i = 0; i < samples; ++i)
     {
-        for (int v = -samples; v <= samples; v++)
-        {
-            output += samplePCF(uv, u, v, z0, shadowMap, samp, txlSize);
-        }
+        float rand = randomFloat(float4(seed, 0.f)) ;
+        float2 jitterFactor = rand*2.f - 1.f;
+        float2 offset = PoissonSamples[i] * 10.f / (currCascade + 1) + jitterFactor * 1.f / (currCascade + 1);
+        output += samplePCF(uv, currCascade, offset, z0, txlSize);
     }
-
-    output /= (samples * 2.f + 1.f) * (samples * 2.f + 1.f);
+    output /= samples;
+    //output = samplePCF(uv, 0, z0, shadowMap, txlSize);
 
     return output;
 }

@@ -19,6 +19,8 @@ bool ResourceManager::RemoveResource(Resource* res)
 	if(it == m_Resources.end())
 		return false;
 	
+	it->second->Release();
+	delete it->second;
 	m_Resources.erase(it);
 	return true;
 }

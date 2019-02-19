@@ -1,11 +1,16 @@
 #include "stdafx.h"
 #include "Renderer\Renderer.h"
 
+#include "Renderer/Effects/Effect.h"
+#include "Renderer\Effects\Tonemapper.h"
+#include "Renderer\Effects\Bloom.h"
+
 #include "Renderer/Window.h"
 #include "Renderer/ShaderUtilities.h"
 #include "Renderer/ShaderBuffers.h"
 #include "Renderer/ResourceManager.h"
 
+#include "Renderer\Texture2D.h"
 #include "Renderer\RenderTexture2D.h"
 #include "Renderer\Material.h"
 #include "Renderer\Mesh.h"
@@ -37,10 +42,11 @@ Renderer::Renderer()
 	m_Swapchain = nullptr;
 	m_Device = nullptr;
 	m_Context = nullptr;
-	m_FinalRenderTargetView = nullptr;
+	m_FinalOutputTexture = nullptr;
 	m_ActiveCamera = nullptr;
-	m_IntermediateSceneTexture = nullptr;
+	m_SceneTexture = nullptr;
 	m_ActiveCameraViewport = new D3D11_VIEWPORT{};
+	m_CascadeShadows.cascadeCount = 3;
 }
 
 
@@ -290,6 +296,11 @@ bool Renderer::Shutdown()
 		delete m_ResourceManager;
 	}
 
+	for(auto& ptr : m_PostProcessChain)
+	{
+		delete ptr;
+	}
+
 	if(m_ActiveCameraViewport)
 		delete m_ActiveCameraViewport;
 
@@ -303,14 +314,14 @@ bool Renderer::InitializeGeometryPass()
 {
 	// Clear the back buffer
 	float color[4] = {0.0f, 0.2f, 0.4f, 1.0f};
-	m_Context->ClearRenderTargetView(m_FinalRenderTargetView.Get(), color);
-	m_Context->ClearRenderTargetView(m_IntermediateSceneTexture->renderTargetView, color);
+	m_Context->ClearRenderTargetView(m_FinalOutputTexture->renderTargetView, color);
+	m_Context->ClearRenderTargetView(m_SceneTexture->renderTargetView, color);
 
 	// Clear the depth buffer to 1.0 (max depth)
-	m_Context->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
-	m_Context->OMSetRenderTargets(1, &m_IntermediateSceneTexture->renderTargetView, m_DepthStencilView.Get());
+	m_Context->ClearDepthStencilView(m_FinalOutputTexture->depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	m_Context->OMSetRenderTargets(1, &m_SceneTexture->renderTargetView, m_FinalOutputTexture->depthStencilView);
 	m_Context->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
-	m_Context->RSSetViewports(1, m_ActiveCameraViewport);
+	SetFullscreenViewport(1.0f);
 
 	m_View = m_ActiveCamera->GetViewMatrix();
 	m_ViewProjection = m_View * m_ActiveCamera->GetOrtographicProjectionMatrix();
@@ -329,9 +340,8 @@ bool Renderer::Draw()
 
 void Renderer::RenderFrame(void)
 {
-	RenderShadowMaps();
 	InitializeGeometryPass();
-	m_Context->PSSetShaderResources(6, 1, &m_ShadowMap->shaderResourceView);
+	m_Context->PSSetShaderResources(6, 1, &m_CascadeShadows.shadowMap->resourceView);
 	for(auto& model : *m_ActiveModels)
 	{
 		for(auto& mesh : model.GetMeshes())
@@ -392,7 +402,6 @@ GeometryBuffer* Renderer::CreateGeometryBuffer(std::string name, std::vector<Ver
 				return buffer;
 		}
 
-		buffer->Release();
 		GetResourceManager()->RemoveResource(buffer);
 	}
 
@@ -429,7 +438,6 @@ VertexShader * Renderer::CreateVertexShader(std::string name)
 					return vs;
 			}
 		}
-		vs->Release();
 		GetResourceManager()->RemoveResource(vs);
 	}
 
@@ -452,7 +460,6 @@ VertexShader * Renderer::CreateVertexShaderPostProcess(std::string name)
 				return vs;
 			}
 		}
-		vs->Release();
 		GetResourceManager()->RemoveResource(vs);
 	}
 
@@ -473,7 +480,6 @@ PixelShader * Renderer::CreatePixelShader(std::string name)
 			if(SUCCEEDED(hr))
 				return ps;
 		}
-		ps->Release();
 		GetResourceManager()->RemoveResource(ps);
 	}
 	return nullptr;
@@ -497,7 +503,6 @@ Texture2D * Renderer::CreateTextureFromFile(std::string name)
 	if(SUCCEEDED(hr))
 		return texture;
 
-	texture->Release();
 	GetResourceManager()->RemoveResource(texture);
 	return nullptr;
 }
@@ -506,7 +511,7 @@ void Renderer::DrawDebugShape(GeometryBuffer * shape, const DirectX::XMMATRIX & 
 {
 	assert(DebugHelpers::DebugMat != nullptr && shape != nullptr);
 
-	m_Context->OMSetRenderTargets(1, m_FinalRenderTargetView.GetAddressOf(), nullptr);
+	m_Context->OMSetRenderTargets(1, &m_FinalOutputTexture->renderTargetView, nullptr);
 
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
@@ -591,9 +596,9 @@ bool Renderer::ResizeSwapChain()
 		return false;
 
 	m_Context->OMSetRenderTargets(0, 0, 0);
-	m_FinalRenderTargetView.Reset();
-	m_DepthStencilView.Reset();
-	HRESULT hr = m_Swapchain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
+	m_FinalOutputTexture->renderTargetView->Release();
+	m_FinalOutputTexture->depthStencilView->Release();
+	HRESULT hr = m_Swapchain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
 
 	if(FAILED(hr))
 		return false;
@@ -607,15 +612,116 @@ bool Renderer::ResizeSwapChain()
 			m_ActiveCamera->UpdateAspectRatio(m_Window->GetDimensions());
 	}
 
-	RenderFrame();
-
 	return true;
+}
+
+void Renderer::SetRenderTargets(unsigned int num, ID3D11RenderTargetView ** rtv, ID3D11DepthStencilView * dsv)
+{
+	m_Context->OMSetRenderTargets(num, rtv, dsv);
+}
+
+void Renderer::ClearRenderTarget()
+{
+	m_Context->OMSetRenderTargets(0, 0, 0);
+}
+
+void Renderer::SetFullscreenViewport(float multiplier)
+{
+	Vector2 dimensions = m_Window->GetDimensions();
+	m_ActiveCameraViewport->Width = dimensions.x*multiplier;
+	m_ActiveCameraViewport->Height = dimensions.y*multiplier;
+	m_Context->RSSetViewports(1, m_ActiveCameraViewport);
+}
+
+void Renderer::SetPixelShader(ID3D11PixelShader * ps)
+{
+	m_Context->PSSetShader(ps, nullptr, 0);
+}
+
+void Renderer::SetPixelShaderResource(unsigned int slot, ID3D11ShaderResourceView** resource)
+{
+	m_Context->PSSetShaderResources(slot, 1, resource);
+}
+
+void Renderer::SetPixelShaderConstantBuffer(unsigned int slot, ID3D11Buffer** resource)
+{
+	m_Context->PSSetConstantBuffers(slot, 1, resource);
+
+}
+
+void Renderer::DrawScreenQuad()
+{
+	m_Context->Draw(4, 0);
+}
+
+void Renderer::GenerateMips(ID3D11ShaderResourceView* tex)
+{
+	m_Context->GenerateMips(tex);
+}
+
+RenderTexture2D* Renderer::CreateRenderTexture2D(D3D11_TEXTURE2D_DESC * desc, std::string name)
+{
+	RenderTexture2D* tex = GetResourceManager()->GetResource<RenderTexture2D>(name);
+	if(tex)
+	{
+		GetResourceManager()->RemoveResource(tex);
+	}
+
+	tex = GetResourceManager()->CreateResource<RenderTexture2D>(name);
+	HRESULT hr = m_Device->CreateTexture2D(desc, NULL, &tex->texture);
+
+	D3D11_RENDER_TARGET_VIEW_DESC rtvDesc{};
+	rtvDesc.Format = desc->Format;
+	rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	rtvDesc.Texture2D.MipSlice = 0;
+
+	hr = m_Device->CreateRenderTargetView(tex->texture, &rtvDesc, &tex->renderTargetView);
+	m_Device->CreateShaderResourceView(tex->texture, nullptr, &tex->resourceView);
+
+	return tex;
+}
+
+RenderTexture2DAllMips * Renderer::CreateRenderTexture2DAllMips(D3D11_TEXTURE2D_DESC * desc, std::string name)
+{
+	RenderTexture2DAllMips* tex = GetResourceManager()->GetResource<RenderTexture2DAllMips>(name);
+	if(tex)
+	{
+		GetResourceManager()->RemoveResource(tex);
+	}
+
+	tex = GetResourceManager()->CreateResource<RenderTexture2DAllMips>(name);
+	HRESULT hr = m_Device->CreateTexture2D(desc, NULL, &tex->texture);
+
+	for(int i = 0; i < desc->MipLevels; ++i)
+	{
+		D3D11_RENDER_TARGET_VIEW_DESC rtvDesc{};
+		rtvDesc.Format = desc->Format;
+		rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		rtvDesc.Texture2D.MipSlice = i;
+
+		ID3D11RenderTargetView* rtv;
+		hr = m_Device->CreateRenderTargetView(tex->texture, &rtvDesc, &rtv);
+		if(SUCCEEDED(hr))
+			tex->RTVs.push_back(rtv);
+	}
+	//D3D11_SHADER_RESOURCE_VIEW_DESC rvDesc{};
+	//rvDesc.Format = desc->Format;
+	//rvDesc.Texture2D.MipLevels = desc->MipLevels;
+	//rvDesc.Texture2D.MostDetailedMip = 0;
+	//rvDesc.
+	m_Device->CreateShaderResourceView(tex->texture, nullptr, &tex->resourceView);
+
+	return tex;
 }
 
 bool Renderer::InitializeSwapChain()
 {
+	if(!m_FinalOutputTexture)
+		m_FinalOutputTexture = GetResourceManager()->CreateResource<RenderTexture2D>("FinalRender");
+
+
+
 	HRESULT hr;
-	Vector2 dimensions = m_Window->GetDimensions();
 #pragma region BACKBUFFER_CREATION
 	/* Backbuffer */
 	ComPtr<ID3D11Texture2D> backBuffer;
@@ -630,14 +736,18 @@ bool Renderer::InitializeSwapChain()
 			return false;
 
 		// use the back buffer address to create the render target
-		hr = m_Device->CreateRenderTargetView(backBuffer.Get(), NULL, &m_FinalRenderTargetView);
+		hr = m_Device->CreateRenderTargetView(backBuffer.Get(), NULL, &m_FinalOutputTexture->renderTargetView);
 
 		if(FAILED(hr))
 			return false;
 	}
 #pragma endregion BACKBUFFER_CREATION
-
-
+	D3D11_TEXTURE2D_DESC desc;
+	backBuffer->GetDesc(&desc);
+	Vector2 dimensions;
+	dimensions.x = desc.Width;
+	dimensions.y = desc.Height;
+	m_Window->m_Dimensions = dimensions;
 #pragma region STENCIL_CREATION
 	/* Stencil */
 	ComPtr<ID3D11Texture2D> stencilTx;
@@ -664,7 +774,7 @@ bool Renderer::InitializeSwapChain()
 		descDSV.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 		descDSV.Texture2D.MipSlice = 0;
-		hr = m_Device->CreateDepthStencilView(stencilTx.Get(), &descDSV, &m_DepthStencilView);
+		hr = m_Device->CreateDepthStencilView(stencilTx.Get(), &descDSV, &m_FinalOutputTexture->depthStencilView);
 		if(FAILED(hr))
 			return hr;
 	#pragma endregion STENCIL_CREATION
@@ -686,16 +796,17 @@ bool Renderer::InitializeSwapChain()
 #pragma endregion VIEWPORT_CREATION
 
 	CreateIntermediateSceneTexture(backBuffer.Get(), stencilTx.Get());
+	InitializePostProcessing();
 
 	return true;
 }
 
 bool Renderer::CreateIntermediateSceneTexture(ID3D11Texture2D* backBuffer, ID3D11Texture2D* stencilTx)
 {
-	if(m_IntermediateSceneTexture)
-		m_IntermediateSceneTexture->Release();
+	if(m_SceneTexture)
+		m_SceneTexture->Release();
 	else
-		m_IntermediateSceneTexture = GetResourceManager()->CreateResource<RenderTexture2D>("IntermediateScene");
+		m_SceneTexture = GetResourceManager()->CreateResource<RenderTexture2D>("IntermediateScene");
 	D3D11_TEXTURE2D_DESC textureDesc;
 	backBuffer->GetDesc(&textureDesc);
 	// Setup the render target texture description.
@@ -703,7 +814,7 @@ bool Renderer::CreateIntermediateSceneTexture(ID3D11Texture2D* backBuffer, ID3D1
 	textureDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	// Create the render target texture.
-	HRESULT hr = m_Device->CreateTexture2D(&textureDesc, NULL, &m_IntermediateSceneTexture->d3dtexture);
+	HRESULT hr = m_Device->CreateTexture2D(&textureDesc, NULL, &m_SceneTexture->texture);
 
 	if(SUCCEEDED(hr))
 	{
@@ -712,7 +823,7 @@ bool Renderer::CreateIntermediateSceneTexture(ID3D11Texture2D* backBuffer, ID3D1
 		renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 		renderTargetViewDesc.Texture2D.MipSlice = 0;
 
-		hr = m_Device->CreateRenderTargetView(m_IntermediateSceneTexture->d3dtexture, &renderTargetViewDesc, &m_IntermediateSceneTexture->renderTargetView);
+		hr = m_Device->CreateRenderTargetView(m_SceneTexture->texture, &renderTargetViewDesc, &m_SceneTexture->renderTargetView);
 
 		if(SUCCEEDED(hr))
 		{
@@ -721,14 +832,14 @@ bool Renderer::CreateIntermediateSceneTexture(ID3D11Texture2D* backBuffer, ID3D1
 			viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 			viewDesc.Texture2D.MipLevels = 1;
 
-			hr = m_Device->CreateShaderResourceView(stencilTx, &viewDesc, &m_IntermediateSceneTexture->depthResourceView);
+			hr = m_Device->CreateShaderResourceView(stencilTx, &viewDesc, &m_SceneTexture->depthView);
 			if(FAILED(hr))
 			{
 				return false;
 			}
 			viewDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
-			hr = m_Device->CreateShaderResourceView(m_IntermediateSceneTexture->d3dtexture, &viewDesc, &m_IntermediateSceneTexture->shaderResourceView);
+			hr = m_Device->CreateShaderResourceView(m_SceneTexture->texture, &viewDesc, &m_SceneTexture->resourceView);
 			if(FAILED(hr))
 			{
 				return false;
@@ -741,36 +852,58 @@ bool Renderer::CreateIntermediateSceneTexture(ID3D11Texture2D* backBuffer, ID3D1
 	return false;
 }
 
+void Renderer::InitializePostProcessing()
+{
+	for(auto& ptr : m_PostProcessChain)
+	{
+		ptr->Release(this);
+		delete ptr;
+	}
+	m_PostProcessChain.clear();
+
+	AddPostProcessingEffect<Bloom>();
+	AddPostProcessingEffect<Tonemapper>();
+}
+
 void Renderer::RenderPostProcessing()
 {
-	m_Context->OMSetRenderTargets(1, m_FinalRenderTargetView.GetAddressOf(), nullptr);
 	m_Context->RSSetState(m_SceneRasterizerState.Get());
 	m_Context->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
-
+	m_Context->PSSetSamplers(3, 1, m_SamplerNearest.GetAddressOf());
+	m_Context->PSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
 	m_Context->IASetInputLayout(nullptr);
 	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-	m_Context->VSSetShader(PostProcessVS->d3dShader, nullptr, 0);
-	m_Context->PSSetShader(PostProcessPS->d3dShader, nullptr, 0);
-	m_Context->PSSetSamplers(3, 1, m_SamplerNearest.GetAddressOf());
-	m_Context->PSSetShaderResources(0, 1, &m_IntermediateSceneTexture->shaderResourceView);
-	m_Context->PSSetShaderResources(1, 1, &m_IntermediateSceneTexture->depthResourceView);
+	m_Context->VSSetShader(FullscreenQuadVS->d3dShader, nullptr, 0);
 
-	m_Context->Draw(4, 0);
+	RenderTexture2D* current = m_SceneTexture;
+
+	for(auto& effect : m_PostProcessChain)
+	{
+		current = effect->RenderEffect(this, current);
+	}
 }
 
 void Renderer::RenderShadowMaps()
 {
+	ID3D11ShaderResourceView* null[8] = {nullptr};
+
+	m_Context->PSSetShaderResources(0, 8, null);
+
 	CLightInfoBuffer* buffer = static_cast<CLightInfoBuffer*>(m_LightInfoBuffer->cpu);
-	m_ViewProjection = m_DirectionalLight->GetLightSpaceMatrix(m_ActiveCamera);
-	m_Context->RSSetState(m_ShadowsRasterizerState.Get());
-	RenderSceneToTexture(m_ShadowMap, true);
+	m_DirectionalLight->GetLightSpaceMatrices(m_ActiveCamera, &m_CascadeShadows);
+	for(int i = 0; i < m_CascadeShadows.cascadeCount; ++i)
+	{
+		m_ViewProjection = m_CascadeShadows.cascadeMatrices[i];
+		m_Context->RSSetState(m_ShadowsRasterizerState.Get());
+		RenderDepthToTexture(m_CascadeShadows.shadowMap->DSVs[i]);
+	}
 }
+
 
 void Renderer::InitializeDefaultShaders()
 {
-	PostProcessPS = CreatePixelShader("PostProcess");
-	PostProcessVS = CreateVertexShaderPostProcess("PostProcess");
+	FullscreenQuadVS = CreateVertexShaderPostProcess("FullscreenQuad");
 }
 
 void Renderer::InitializeConstantBuffers()
@@ -785,87 +918,63 @@ void Renderer::InitializeShadowMaps(float resolution)
 {
 	HRESULT hr;
 	// Create depth stencil texture
-	m_ShadowMap = GetResourceManager()->CreateResource<RenderTexture2D>("ShadowMap");
+	m_CascadeShadows.shadowMap = GetResourceManager()->CreateResource<DepthTexture2D>("ShadowMap");
 
-	if(m_ShadowMap)
+	if(m_CascadeShadows.shadowMap)
 	{
 		D3D11_TEXTURE2D_DESC textureDesc{};
 		// Setup the render target texture description.
 		textureDesc.Width = (UINT)resolution;
 		textureDesc.Height = (UINT)resolution;
 		textureDesc.MipLevels = 1;
-		textureDesc.ArraySize = 1;
-		textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		textureDesc.ArraySize = m_CascadeShadows.cascadeCount;
+		textureDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 		textureDesc.SampleDesc.Count = 1;
 		textureDesc.Usage = D3D11_USAGE_DEFAULT;
-		textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+		textureDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 		textureDesc.CPUAccessFlags = 0;
 		textureDesc.MiscFlags = 0;
 
 		// Create the render target texture.
-		hr = m_Device->CreateTexture2D(&textureDesc, NULL, &m_ShadowMap->d3dtexture);
+		hr = m_Device->CreateTexture2D(&textureDesc, NULL, &m_CascadeShadows.shadowMap->texture);
+
+		for(int i = 0; i < m_CascadeShadows.cascadeCount; ++i)
+		{
+			D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+			dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+			dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+			dsvDesc.Texture2DArray.ArraySize = 1;
+			dsvDesc.Texture2DArray.FirstArraySlice = i;
+			dsvDesc.Texture2D.MipSlice = 0;
+
+			ID3D11DepthStencilView* dsv;
+			hr = m_Device->CreateDepthStencilView(m_CascadeShadows.shadowMap->texture, &dsvDesc, &dsv);
+			if(SUCCEEDED(hr))
+				m_CascadeShadows.shadowMap->DSVs.push_back(dsv);
+		}
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+		srvDesc.Texture2DArray.ArraySize = m_CascadeShadows.cascadeCount;
+		srvDesc.Texture2DArray.FirstArraySlice = 0;
+		srvDesc.Texture2DArray.MipLevels = 1;
+		srvDesc.Texture2DArray.MostDetailedMip = 0;
+
+		hr = m_Device->CreateShaderResourceView(m_CascadeShadows.shadowMap->texture, &srvDesc, &m_CascadeShadows.shadowMap->resourceView);
+
+		m_DirectionalLightViewport = new D3D11_VIEWPORT;
+		m_DirectionalLightViewport->Height = resolution;
+		m_DirectionalLightViewport->Width = resolution;
+		m_DirectionalLightViewport->MaxDepth = 1.0f;
+		m_DirectionalLightViewport->MinDepth = 0.0f;
+		m_DirectionalLightViewport->TopLeftX = 0.f;
+		m_DirectionalLightViewport->TopLeftY = 0.f;
 
 		if(SUCCEEDED(hr))
-		{
-			D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc{};
-			renderTargetViewDesc.Format = textureDesc.Format;
-			renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-			renderTargetViewDesc.Texture2D.MipSlice = 0;
-
-			hr = m_Device->CreateRenderTargetView(m_ShadowMap->d3dtexture, &renderTargetViewDesc, &m_ShadowMap->renderTargetView);
-
-			if(SUCCEEDED(hr))
-			{
-				D3D11_TEXTURE2D_DESC descDepth{};
-				descDepth.Width = static_cast<UINT>(resolution);
-				descDepth.Height = static_cast<UINT>(resolution);
-				descDepth.MipLevels = 1;
-				descDepth.ArraySize = 1;
-				descDepth.Format = DXGI_FORMAT_R32_TYPELESS;
-				descDepth.SampleDesc.Count = 1;
-				descDepth.SampleDesc.Quality = 0;
-				descDepth.Usage = D3D11_USAGE_DEFAULT;
-				descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-				descDepth.CPUAccessFlags = 0;
-				descDepth.MiscFlags = 0;
-				hr = m_Device->CreateTexture2D(&descDepth, nullptr, &m_ShadowMap->d3dstencil);
-				if(SUCCEEDED(hr))
-				{
-					D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc{};
-					viewDesc.Format = DXGI_FORMAT_R32_FLOAT;
-					viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-					viewDesc.Texture2D.MipLevels = 1;
-
-					hr = m_Device->CreateShaderResourceView(m_ShadowMap->d3dstencil, &viewDesc, &m_ShadowMap->shaderResourceView);
-					if(SUCCEEDED(hr))
-					{
-						// Create the depth stencil view
-						D3D11_DEPTH_STENCIL_VIEW_DESC descDSV{};
-						descDSV.Format = DXGI_FORMAT_D32_FLOAT;
-						descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-						descDSV.Texture2D.MipSlice = 0;
-						hr = m_Device->CreateDepthStencilView(m_ShadowMap->d3dstencil, &descDSV, &m_ShadowMap->depthStencilView);
-						if(SUCCEEDED(hr))
-						{
-							m_DirectionalLightViewport = new D3D11_VIEWPORT{};
-							m_DirectionalLightViewport->TopLeftX = 0;
-							m_DirectionalLightViewport->TopLeftY = 0;
-
-							m_DirectionalLightViewport->Width = resolution;
-							m_DirectionalLightViewport->Height = resolution;
-
-							m_DirectionalLightViewport->MaxDepth = 1.0f;
-							m_DirectionalLightViewport->MinDepth = 0.0f;
-
-							return;
-						}
-					}
-				}
-			}
-		}
-		m_ShadowMap->Release();
-		GetResourceManager()->RemoveResource(m_ShadowMap);
+			return;
 	}
+	GetResourceManager()->RemoveResource(m_CascadeShadows.shadowMap);
 }
 
 void Renderer::CreateRasterizerStates()
@@ -924,6 +1033,8 @@ void Renderer::RenderSkybox()
 
 void Renderer::UpdateLightBuffers(XMFLOAT3 ambientColor, std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights)
 {
+	RenderShadowMaps();
+
 	CLightInfoBuffer* buffer = static_cast<CLightInfoBuffer*>(m_LightInfoBuffer->cpu);
 	{//Directional light
 		XMVECTOR color = m_DirectionalLight->GetLightColor()*m_DirectionalLight->GetLightIntensity();
@@ -931,7 +1042,11 @@ void Renderer::UpdateLightBuffers(XMFLOAT3 ambientColor, std::vector<PointLightC
 		XMVECTOR vec = m_DirectionalLight->GetLightDirection();
 		XMStoreFloat3(&buffer->lightInfo.directionalLight.direction, vec);
 
-		buffer->lightInfo.directionalShadowInfo.viewProj = XMMatrixTranspose(m_DirectionalLight->GetLightSpaceMatrix(m_ActiveCamera));
+		for(int i = 0; i < m_CascadeShadows.cascadeCount; i++)
+		{
+			buffer->lightInfo.directionalShadowInfo.cascades[i].lightSpace = XMMatrixTranspose(m_CascadeShadows.cascadeMatrices[i]);
+			buffer->lightInfo.directionalShadowInfo.cascades[i].cascadeSplit = m_CascadeShadows.cascadeSplits[i];
+		}
 		buffer->lightInfo.directionalShadowInfo.normalOffset = m_DirectionalLight->GetNormalOffset();
 		buffer->lightInfo.directionalShadowInfo.bias = m_DirectionalLight->GetShadowBias();
 		buffer->lightInfo.directionalShadowInfo.resolution = m_DirectionalLight->GetShadowResolution();
@@ -1012,12 +1127,11 @@ ConstantBuffer * Renderer::CreateConstantBuffer(uint32_t size, std::string name)
 		return buffer;
 	}
 
-	buffer->Release();
 	GetResourceManager()->RemoveResource(buffer);
 	return nullptr;
 }
 
-void Renderer::RenderSceneToTexture(RenderTexture2D * output, bool NoPixelShader)
+void Renderer::RenderSceneToTexture(RenderTexture2D * output)
 {
 	float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 	m_Context->ClearDepthStencilView(output->depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
@@ -1035,6 +1149,43 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, bool NoPixelShader
 	RenderSkybox();
 
 	m_Context->OMSetRenderTargets(0, 0, nullptr);
+}
+
+void Renderer::RenderDepthToTexture(ID3D11DepthStencilView* dsv)
+{
+	ID3D11RenderTargetView* null[] = {nullptr};
+	m_Context->OMSetRenderTargets(1, null, dsv);
+	m_Context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	m_Context->RSSetViewports(1, m_DirectionalLightViewport);
+
+	for(auto& model : *m_ActiveModels)
+	{
+		for(auto& mesh : model.GetMeshes())
+		{
+			XMMATRIX transform = model.GetTransformMatrix();
+
+			UINT stride = sizeof(Vertex);
+			UINT offset = 0;
+
+			CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
+			matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
+			XMMATRIX normalMatrix = transform;
+			matrices->World = XMMatrixTranspose(transform);
+			UpdateConstantBuffer(m_TransformBuffer);
+
+			m_Context->IASetVertexBuffers(0, 1, &mesh->geometry->vertexBuffer.data, &stride, &offset);
+			m_Context->IASetIndexBuffer(mesh->geometry->indexBuffer.data, DXGI_FORMAT_R32_UINT, 0);
+			m_Context->IASetInputLayout(mesh->material->vertexShader->inputLayout);
+			m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			m_Context->VSSetShader(mesh->material->vertexShader->d3dShader, nullptr, 0);
+			m_Context->PSSetShader(nullptr, nullptr, 0);
+
+			m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
+		}
+	}
+
+	m_Context->OMSetRenderTargets(0, 0, 0);
 }
 
 ID3D11Buffer* Renderer::CreateD3DBuffer(D3D11_BUFFER_DESC* desc, D3D11_SUBRESOURCE_DATA* InitData)

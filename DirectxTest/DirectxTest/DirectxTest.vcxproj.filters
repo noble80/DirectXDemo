@@ -9,6 +9,11 @@
     <FxCompile Include="Shaders\Sky_PS.hlsl" />
     <FxCompile Include="Shaders\PBR_PS.hlsl" />
     <FxCompile Include="Shaders\Bamboozled_PS.hlsl" />
+    <FxCompile Include="Shaders\Tonemapper_PS.hlsl" />
+    <FxCompile Include="Shaders\FullscreenQuad_VS.hlsl" />
+    <FxCompile Include="Shaders\BloomBlur_PS.hlsl" />
+    <FxCompile Include="Shaders\BloomCombine_PS.hlsl" />
+    <FxCompile Include="Shaders\BloomMask_PS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />
@@ -45,6 +50,9 @@
     <ClCompile Include="Source\Private\Importer\MeshImporter.cpp" />
     <ClCompile Include="Source\Private\Engine\MeshComponent.cpp" />
     <ClCompile Include="Source\Private\Renderer\ShaderContainers.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Effects\Effect.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Effects\Bloom.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Effects\Tonemapper.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Public\Engine\CameraComponent.h" />
@@ -92,7 +100,10 @@
     <ClInclude Include="Source\Public\Renderer\ShaderContainers.h" />
     <ClInclude Include="Shaders\BlinnPhong_Include.hlsl" />
     <ClInclude Include="Shaders\PBR_Include.hlsl" />
-    <ClInclude Include="Shaders\PostProcess_PS.hlsl" />
-    <ClInclude Include="Shaders\PostProcess_VS.hlsl" />
+    <ClInclude Include="Shaders\Constants.hlsl" />
+    <ClInclude Include="Source\Public\Renderer\Effects\Bloom.h" />
+    <ClInclude Include="Source\Public\Renderer\Effects\Effect.h" />
+    <ClInclude Include="Source\Public\Renderer\Effects\Tonemapper.h" />
+    <ClInclude Include="Shaders\ACES.hlsl" />
   </ItemGroup>
 </Project>

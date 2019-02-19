@@ -5,7 +5,7 @@
 
 #define POINTLIGHT_MAX 10
 #define SPOTLIGHT_MAX 10
-
+#define CASCADES_MAX 3
 
 struct CSceneInfoBuffer
 {
@@ -36,9 +36,16 @@ struct DirectionalLight
 	float padding2;
 };
 
+struct Cascade
+{
+	DirectX::XMMATRIX lightSpace;
+	float cascadeSplit;
+	DirectX::XMFLOAT3 padding;
+};
+
 struct DirectionalShadowInfo
 {
-	DirectX::XMMATRIX viewProj;
+	Cascade cascades[CASCADES_MAX];
 	float bias;
 	float normalOffset;
 	float resolution;

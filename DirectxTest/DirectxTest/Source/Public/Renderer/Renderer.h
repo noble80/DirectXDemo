@@ -14,7 +14,8 @@ struct ID3D11InputLayout;
 struct ID3D11SamplerState;
 struct ID3D11RasterizerState;
 struct ID3D11DepthStencilState;
-
+struct ID3D11Resource;
+struct ID3D11ShaderResourceView;
 struct CTransformBuffer;
 
 class ResourceManager;
@@ -26,6 +27,8 @@ struct Model;
 struct ConstantBuffer;
 struct Texture2D;
 struct RenderTexture2D;
+struct DepthTexture2D;
+struct RenderTexture2DAllMips;
 
 class DirectionalLightComponent;
 class PointLightComponent;
@@ -38,9 +41,26 @@ struct D3D11_BUFFER_DESC;
 struct D3D11_SUBRESOURCE_DATA;
 struct SurfaceProperties;
 struct ID3D11Texture2D;
+struct D3D11_TEXTURE2D_DESC;
 
 struct VertexShader;
 struct PixelShader;
+
+class Effect;
+
+struct CascadeShadows
+{
+	int cascadeCount;
+	DepthTexture2D* shadowMap;
+	std::vector<DirectX::XMMATRIX> cascadeMatrices;
+	std::vector<float> cascadeSplits;
+
+	CascadeShadows()
+	{
+		shadowMap = nullptr;
+	}
+};
+
 
 class Renderer
 {
@@ -50,6 +70,7 @@ public:
 	~Renderer();
 
 	friend class Window;
+	friend class Tonemapper;
 
 	bool Initialize(Window* window);
 	bool Update();
@@ -80,7 +101,8 @@ public:
 
 	inline void SetActiveCamera(CameraComponent* camera) { m_ActiveCamera = camera; };
 
-	void RenderSceneToTexture(RenderTexture2D* output, bool NoPixelShader = false);
+	void RenderSceneToTexture(RenderTexture2D* output);
+	void RenderDepthToTexture(ID3D11DepthStencilView* dsv);
 
 
 	inline ResourceManager* GetResourceManager() { return m_ResourceManager; };
@@ -91,11 +113,38 @@ public:
 	bool FullScreenModeSwitched();
 
 	bool ResizeSwapChain();
+
+	void SetRenderTargets(unsigned int num, ID3D11RenderTargetView** rtv, ID3D11DepthStencilView* dsv);
+	void ClearRenderTarget();
+	void SetFullscreenViewport(float multiplier);
+	void SetPixelShader(ID3D11PixelShader* ps);
+	void SetPixelShaderResource(unsigned int slot, ID3D11ShaderResourceView** resource);
+	void SetPixelShaderConstantBuffer(unsigned int slot, ID3D11Buffer** resource);
+	void DrawScreenQuad();
+	void GenerateMips(ID3D11ShaderResourceView* tex);
+
+	inline RenderTexture2D* GetSceneTexture() { return m_SceneTexture; };
+	RenderTexture2DAllMips* CreateRenderTexture2DAllMips(D3D11_TEXTURE2D_DESC* desc, std::string name);
+	RenderTexture2D* CreateRenderTexture2D(D3D11_TEXTURE2D_DESC * desc, std::string name);
+
+	template<class T>
+	void AddPostProcessingEffect()
+	{
+		static_assert(std::is_base_of<Effect, T>::value, "Template effect not derived from Effect");
+		T* effect = new T;
+		m_PostProcessChain.push_back(effect);
+		effect->Initialize(this);
+	}
 private:
+	bool m_Paused = true;
+
 	bool InitializeSwapChain();
 	bool CreateIntermediateSceneTexture(ID3D11Texture2D* backBuffer, ID3D11Texture2D* stencilTx);
 	Window* m_Window;
 
+	CascadeShadows m_CascadeShadows;
+
+	void InitializePostProcessing();
 	void RenderPostProcessing();
 	void RenderShadowMaps();
 	void InitializeDefaultShaders();
@@ -108,8 +157,6 @@ private:
 	Microsoft::WRL::ComPtr<IDXGISwapChain1>				m_Swapchain;		// ptr to swap chain
 	Microsoft::WRL::ComPtr<ID3D11Device1>				m_Device;			// ptr to device
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext1>		m_Context;			// ptr to device context
-	Microsoft::WRL::ComPtr<ID3D11RenderTargetView>		m_FinalRenderTargetView;
-	Microsoft::WRL::ComPtr<ID3D11DepthStencilView>		m_DepthStencilView;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_ShadowSampler;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_SamplerLinearWrap;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_SamplerLinearClamp;
@@ -123,7 +170,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState>		m_DepthStencilState;
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState>		m_DepthStencilSkyState;
 
-	   
+
 	ConstantBuffer*										m_LightInfoBuffer;
 	ConstantBuffer*										m_SceneInfoBuffer;
 	ConstantBuffer*										m_TransformBuffer;
@@ -131,8 +178,8 @@ private:
 
 	CameraComponent*									m_ActiveCamera;
 	std::vector<MeshComponent>*							m_ActiveModels;
-	RenderTexture2D*									m_ShadowMap;
-	RenderTexture2D*									m_IntermediateSceneTexture;
+	RenderTexture2D*									m_FinalOutputTexture;
+	RenderTexture2D*									m_SceneTexture;
 	DirectionalLightComponent*							m_DirectionalLight;
 
 	D3D11_VIEWPORT*										m_ActiveCameraViewport;
@@ -141,7 +188,8 @@ private:
 	DirectX::XMMATRIX									m_ViewProjection;
 	DirectX::XMMATRIX									m_View;
 
-	VertexShader*										PostProcessVS;
-	PixelShader*										PostProcessPS;
+	VertexShader*										FullscreenQuadVS;
+
+	std::vector<Effect*>								m_PostProcessChain;
 };
 

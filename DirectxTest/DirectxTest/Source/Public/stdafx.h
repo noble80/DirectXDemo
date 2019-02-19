@@ -6,3 +6,5 @@
 #include <cstddef>
 #include <map>
 #include "Math\MathLibrary.h"
+
+#include <assert.h>

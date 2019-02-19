@@ -46,11 +46,14 @@ public:
 	inline HWND GetHandle() { return m_WindowHandle; };
 	Vector2 GetDimensions() { return m_Dimensions; }
 
-	void HandleResize(WPARAM wParam, LPARAM lParam);
-	void HandleFullscreenChange(WPARAM wParam, LPARAM lParam);
+	void HandleResize();
+	void HandleFullscreenChange(LPARAM lparam, WPARAM wparam);
+
+	bool Paused = false;
 
 	inline Renderer* GetRenderer() { return m_Renderer; };
 private:
+
 
 	Vector2 m_Dimensions;
 	uint32_t m_WindowFlags;

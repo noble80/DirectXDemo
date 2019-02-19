@@ -54,7 +54,7 @@ int WINAPI WinMain(
 
 	// this function call will set a breakpoint at the location of a leaked block
 	// set the parameter to the identifier for a leaked block
-	//_CrtSetBreakAlloc(227251);
+	//_CrtSetBreakAlloc(50844);
 
 	Log::DebugConsole::Initialize();
 
@@ -67,7 +67,7 @@ int WINAPI WinMain(
 
 	//Load up meshes
 	{
-		std::string meshNames[] = {"GodTree", "Sphere01", "CornellBox01", "Rock01", "Flag01_1", "Flag01_2"};
+		std::string meshNames[] = {"ShadowsTest", "GodTree", "Sphere01", "Rock01", "Flag01_1", "Flag01_2"};
 		int n = ARRAYSIZE(meshNames);
 		for(int i = 0; i < n; ++i)
 		{
@@ -100,15 +100,12 @@ int WINAPI WinMain(
 		reflectiveMat->surfaceParameters.glossiness = 1.f;
 		reflectiveMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_REFLECTIONS;
 
-		Material* cornellBoxMat = renderer->CreateMaterial("CornellBox");
-		cornellBoxMat->vertexShader = defaultVS;
-		cornellBoxMat->pixelShader = defaultPS;
-		cornellBoxMat->detailsMap = renderer->CreateTextureFromFile("CornellBoxAO");
-		cornellBoxMat->reflectionMap = reflectiveMat->reflectionMap;
-		cornellBoxMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_AO_MAP;// | SURFACE_FLAG_HAS_REFLECTIONS;
-		cornellBoxMat->surfaceParameters.diffuseColor = XMFLOAT3(0.3f, 0.3f, 0.3f);
-		cornellBoxMat->surfaceParameters.specularIntensity = .2f;
-		cornellBoxMat->surfaceParameters.glossiness = 0.3f;
+		Material* shadowTestMat = renderer->CreateMaterial("ShadowsTest");
+		shadowTestMat->vertexShader = defaultVS;
+		shadowTestMat->pixelShader = defaultPS;
+		shadowTestMat->surfaceParameters.diffuseColor = XMFLOAT3(0.3f, 0.3f, 0.3f);
+		shadowTestMat->surfaceParameters.specularIntensity = .2f;
+		shadowTestMat->surfaceParameters.glossiness = 0.3f;
 
 		Material* rockMat = renderer->CreateMaterial("Rock01");
 		rockMat->vertexShader = defaultVS;
@@ -166,13 +163,9 @@ int WINAPI WinMain(
 		godTree->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("GodTree");
 		godTree->material = godTreeMat;
 
-		Mesh* box = renderer->GetResourceManager()->CreateResource<Mesh>("CornellBox01");
-		box->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("CornellBox01");
-		box->material = cornellBoxMat;
-
-		Mesh* sphere = renderer->GetResourceManager()->CreateResource<Mesh>("Sphere01");
-		sphere->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01");
-		sphere->material = reflectiveMat;
+		Mesh* box = renderer->GetResourceManager()->CreateResource<Mesh>("ShadowsTest");
+		box->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("ShadowsTest");
+		box->material = shadowTestMat;
 
 		Mesh* waveSphere = renderer->GetResourceManager()->CreateResource<Mesh>("WaveSphere01");
 		waveSphere->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01");
@@ -190,7 +183,7 @@ int WINAPI WinMain(
 			MeshImporter::Mesh imesh = MeshImporter::WeakImportModelFromOBJ();
 			Mesh* obj = renderer->GetResourceManager()->CreateResource<Mesh>("ComplexMeshOBJ");
 			obj->geometry = renderer->CreateGeometryBuffer("complexOBJ", &imesh.vertices, imesh.indices);
-			obj->material = cornellBoxMat;
+			obj->material = shadowTestMat;
 		}
 	}
 
@@ -237,7 +230,7 @@ int WINAPI WinMain(
 		transform->SetPosition(XMVectorSet(0.f, 0.f, 0.f, 1.f));
 
 		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
-		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("CornellBox01"));
+		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("ShadowsTest"));
 	}
 
 	{
@@ -250,17 +243,6 @@ int WINAPI WinMain(
 		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("FlagPole"));
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("FlagTop"));
-	}
-
-	{
-		Entity* entity = sceneManager->CreateEntity("Sphere01");
-		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
-		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
-		transform->SetPosition(XMVectorSet(4.f, 2.f, 3.f, 1.f));
-		transform->SetScale(XMVectorSet(2.f, 2.f, 2.f, 1.f));
-
-		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
-		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Sphere01"));
 	}
 
 
@@ -289,7 +271,7 @@ int WINAPI WinMain(
 	{
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(directionalLightEntity);
 		DirectionalLightComponent* light = sceneManager->CreateComponent<DirectionalLightComponent>(directionalLightEntity);
-		transform->SetRotation(Quaternion::FromAngles(90.f, 0.f, 0.f));
+		transform->SetRotation(Quaternion::FromAngles(45.f, 45.f, 0.f));
 		light->SetLightColor(XMVectorSet(0.9f, 0.85f, 0.8f, 0.f));
 		light->SetLightIntensity(7.f);
 	}
@@ -464,7 +446,7 @@ int WINAPI WinMain(
 
 		} CoreInput::ResetAxes();
 
-		directionalLightEntity->GetComponent<TransformComponent>()->SetRotation(Quaternion::FromAngles(40.f, totalTime*15.f, 0.f));
+		//directionalLightEntity->GetComponent<TransformComponent>()->SetRotation(Quaternion::FromAngles(40.f, totalTime*15.f, 0.f));
 
 		for(auto& light : *sceneManager->GetComponents<PointLightComponent>())
 		{
@@ -483,7 +465,7 @@ int WINAPI WinMain(
 		}
 
 		renderer->SetActiveModels(sceneManager->GetComponents<MeshComponent>());
-		renderer->UpdateLightBuffers(XMFLOAT3(0.4f, 0.4f, 0.4f), sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
+		renderer->UpdateLightBuffers(XMFLOAT3(0.8f, 0.8f, 0.8f), sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
 		renderer->UpdateSceneBuffer(totalTime);
 		renderer->RenderFrame();
 

@@ -3,8 +3,6 @@
 #include "PSIncludes.hlsl"
 
 Texture2D diffuseMap : register(t0);
-SamplerState sampleTypeWrap : register(s0);
-
 
 struct INPUT_PIXEL
 {

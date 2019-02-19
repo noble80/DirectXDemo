@@ -6,12 +6,7 @@ Texture2D normalMap : register(t2);
 TextureCube IBLDiffuse : register(t3);
 TextureCube IBLSpecular : register(t4);
 Texture2D IBLIntegration : register(t5);
-Texture2D directionalShadowMap : register(t6);
 
-SamplerState sampleTypeWrap : register(s0);
-SamplerComparisonState sampleTypeShadows : register(s1);
-SamplerState sampleTypeClamp : register(s2);
-SamplerState sampleTypeNearest : register(s3);
 
 struct INPUT_PIXEL
 {
@@ -21,6 +16,7 @@ struct INPUT_PIXEL
     float3 NormalWS : NORMAL;
     float3 TangentWS : TANGENT;
     float3 BinormalWS : BINORMAL;
+    float linearDepth : DEPTH;
 };
 
 float4 main(INPUT_PIXEL pIn) : SV_TARGET
@@ -53,7 +49,7 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
         surface.roughness *= detailsMap.Sample(sampleTypeWrap, pIn.Tex).x;
     }
     //Remapping roughness to prevent errors on normal distribution
-    surface.roughness = remap(surface.roughness, 0.0f, 1.0f, 0.05f, 1.0f);
+    surface.roughness = remap(surface.roughness, 0.0f, 1.0f, 0.08f, 1.0f);
 
     if (HasAOTexture(_textureFlags))
     {
@@ -129,26 +125,10 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
     }
 
 	{
-        float shadowRatio = 1.0f;
-        float txlSize = 1.0f / (lightInfo.directionalShadowInfo.resolution);
-
         float lightRatio = saturate(dot(surface.normal, -lightInfo.directionalLight.direction));
         float3 normalOffset = pIn.NormalWS * (lightInfo.directionalShadowInfo.normalOffset * (1.f - lightRatio));
 
-        float4 lightSpacePos = mul(float4(positionWS + normalOffset, 1), lightInfo.directionalShadowInfo.viewProj);
-        float3 lspProj = lightSpacePos.xyz / lightSpacePos.w;
-		// Screencoords to NDC
-        float2 shadowCoords;
-        shadowCoords.x = lspProj.x / 2.0f + 0.5f;
-        shadowCoords.y = -lspProj.y / 2.0f + 0.5f;
-		//Check if within shadowmap bounds
-        if ((saturate(shadowCoords.x) == shadowCoords.x) && (saturate(shadowCoords.y) == shadowCoords.y))
-        {
-			//Get depth w/ bias
-            float z = lspProj.z - lightInfo.directionalShadowInfo.bias;
-
-            shadowRatio = PCFBlur(shadowCoords, 2, z, directionalShadowMap, sampleTypeShadows, txlSize);
-        }
+        float3 shadowRatio = SampleShadows(positionWS + normalOffset, pIn.linearDepth);
 
         float3 radiance = lightInfo.directionalLight.color * shadowRatio;
 

@@ -4,11 +4,7 @@ Texture2D diffuseMap : register(t0);
 Texture2D detailsMap : register(t1);
 Texture2D normalMap : register(t2);
 TextureCube ReflectionMap : register(t3);
-Texture2D directionalShadowMap : register(t6);
 
-SamplerState sampleTypeWrap : register(s0);
-SamplerComparisonState sampleTypeShadows : register(s1);
-SamplerState sampleTypeClamp : register(s2);
 
 struct INPUT_PIXEL
 {
@@ -18,6 +14,7 @@ struct INPUT_PIXEL
     float3 NormalWS : NORMAL;
     float3 TangentWS : TANGENT;
     float3 BinormalWS : BINORMAL;
+    float linearDepth : DEPTH;
 };
 
 float4 main(INPUT_PIXEL pIn) : SV_TARGET
@@ -118,26 +115,10 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
     }
 
 	{
-        float shadowRatio = 1.0f;
-        float txlSize = 1.0f / (lightInfo.directionalShadowInfo.resolution);
-
         float lightRatio = saturate(dot(surface.normal, -lightInfo.directionalLight.direction));
         float3 normalOffset = pIn.NormalWS * (lightInfo.directionalShadowInfo.normalOffset * (1.f - lightRatio));
 
-        float4 lightSpacePos = mul(float4(positionWS + normalOffset, 1), lightInfo.directionalShadowInfo.viewProj);
-        float3 lspProj = lightSpacePos.xyz / lightSpacePos.w;
-		// Screencoords to NDC
-        float2 shadowCoords;
-        shadowCoords.x = lspProj.x / 2.0f + 0.5f;
-        shadowCoords.y = -lspProj.y / 2.0f + 0.5f;
-		//Check if within shadowmap bounds
-        if ((saturate(shadowCoords.x) == shadowCoords.x) && (saturate(shadowCoords.y) == shadowCoords.y))
-        {
-			//Get depth w/ bias
-            float z = lspProj.z - lightInfo.directionalShadowInfo.bias;
-
-            shadowRatio = PCFBlur(shadowCoords, 2, z, directionalShadowMap, sampleTypeShadows, txlSize);
-        }
+        float3 shadowRatio = SampleShadows(positionWS + normalOffset, pIn.linearDepth);
 
         color += lightInfo.directionalLight.color * shadowRatio * BlinnPhong(surface, -lightInfo.directionalLight.direction, viewWS);
     }

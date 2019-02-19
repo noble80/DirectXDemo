@@ -1,13 +1,13 @@
 #include "stdafx.h"
 #include "Renderer/RenderTexture2D.h"
 
-RenderTexture2D::RenderTexture2D() : Texture2D()
+RenderTexture2D::RenderTexture2D()
 {
-	d3dtexture = nullptr;
+	resourceView = nullptr;
+	texture = nullptr;
 	renderTargetView = nullptr;
-	d3dstencil = nullptr;
+	depthView = nullptr;
 	depthStencilView = nullptr;
-	depthResourceView = nullptr;
 }
 
 RenderTexture2D::~RenderTexture2D()
@@ -16,16 +16,66 @@ RenderTexture2D::~RenderTexture2D()
 
 void RenderTexture2D::Release()
 {
-	Texture2D::Release();
-
-	if(d3dtexture)
-		d3dtexture->Release();
-	if(renderTargetView)
-		renderTargetView->Release();
-	if(d3dstencil)
-		d3dstencil->Release();
 	if(depthStencilView)
 		depthStencilView->Release();
-	if(depthResourceView)
-		depthResourceView->Release();
+
+	if(renderTargetView)
+		renderTargetView->Release();
+
+	if(resourceView)
+		resourceView->Release();
+
+	if(texture)
+		texture->Release();
+
+	if(depthView)
+		depthView->Release();
+}
+
+DepthTexture2D::DepthTexture2D()
+{
+	resourceView = nullptr;
+	texture = nullptr;
+}
+
+DepthTexture2D::~DepthTexture2D()
+{
+}
+
+void DepthTexture2D::Release()
+{
+	for(int i = 0; i < DSVs.size(); ++i)
+	{
+		DSVs[i]->Release();
+	}
+
+	if(resourceView)
+		resourceView->Release();
+
+	if(texture)
+		texture->Release();
+}
+
+RenderTexture2DAllMips::RenderTexture2DAllMips()
+{
+	resourceView = nullptr;
+	texture = nullptr;
+}
+
+RenderTexture2DAllMips::~RenderTexture2DAllMips()
+{
+}
+
+void RenderTexture2DAllMips::Release()
+{
+	for(int i = 0; i < RTVs.size(); ++i)
+	{
+		RTVs[i]->Release();
+	}
+
+	if(resourceView)
+		resourceView->Release();
+
+	if(texture)
+		texture->Release();
 }

@@ -17,6 +17,7 @@ struct OUTPUT_VERTEX
     float3 NormalWS : NORMAL;
     float3 TangentWS : TANGENT;
     float3 BinormalWS : BINORMAL;
+    float linearDepth : DEPTH;
 };
 
 
@@ -46,6 +47,8 @@ OUTPUT_VERTEX main(INPUT_VERTEX vIn)
 	
     output.NormalWS = mul(float4(vIn.Normal, 0), Normal).xyz;
     output.NormalWS = normalize(output.NormalWS);
+
+    output.linearDepth = output.Pos.w;
 
     return output;
 }

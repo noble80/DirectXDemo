@@ -28,6 +28,7 @@ public:
 	{
 		ResourceID ID(&typeid(T), name);
 		T* res = new T;
+		res->id.name = name;
 		auto it = m_Resources.find(ID);
 		if(it == m_Resources.end())
 		{

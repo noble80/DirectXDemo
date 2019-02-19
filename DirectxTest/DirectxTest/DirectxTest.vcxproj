@@ -25,6 +25,7 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
     </FxCompile>
+    <ClInclude Include="Shaders\ACES.hlsl" />
     <ClInclude Include="Shaders\Common.hlsl">
       <FileType>Document</FileType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Effect</ShaderType>
@@ -33,6 +34,24 @@
     <ClInclude Include="Shaders\BlinnPhong_Include.hlsl">
       <FileType>Document</FileType>
     </ClInclude>
+    <FxCompile Include="Shaders\BloomBlur_PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\BloomCombine_PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\BloomMask_PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\Debug_PS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
@@ -51,6 +70,10 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.1</ShaderModel>
     </FxCompile>
     <FxCompile Include="Shaders\Default_VS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
@@ -58,6 +81,7 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
+    <ClInclude Include="Shaders\Constants.hlsl" />
     <ClInclude Include="Shaders\PBR_Include.hlsl">
       <FileType>Document</FileType>
     </ClInclude>
@@ -67,6 +91,10 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.1</ShaderModel>
     </FxCompile>
     <FxCompile Include="Shaders\Sky_PS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
@@ -108,6 +136,9 @@
     <ClCompile Include="Source\Private\Math\MathLibrary.cpp" />
     <ClCompile Include="Source\Private\Math\Vector4.cpp" />
     <ClCompile Include="Source\Private\Renderer\DebugHelpers.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Effects\Bloom.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Effects\Effect.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Effects\Tonemapper.cpp" />
     <ClCompile Include="Source\Private\Renderer\GraphicsStructures.cpp" />
     <ClCompile Include="Source\Private\Renderer\Material.cpp" />
     <ClCompile Include="Source\Private\Renderer\Renderer.cpp" />
@@ -131,14 +162,14 @@
     <ClCompile Include="Source\Private\Renderer\Mesh.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Shaders\PostProcess_PS.hlsl">
+    <FxCompile Include="Shaders\Tonemapper_PS.hlsl">
       <FileType>CppHeader</FileType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
     </FxCompile>
-    <FxCompile Include="Shaders\PostProcess_VS.hlsl">
+    <FxCompile Include="Shaders\FullscreenQuad_VS.hlsl">
       <FileType>CppHeader</FileType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
@@ -171,6 +202,9 @@
     <ClInclude Include="Source\Public\Math\Vector2.h" />
     <ClInclude Include="Source\Public\Math\Vector4.h" />
     <ClInclude Include="Source\Public\Renderer\DebugHelpers.h" />
+    <ClInclude Include="Source\Public\Renderer\Effects\Bloom.h" />
+    <ClInclude Include="Source\Public\Renderer\Effects\Effect.h" />
+    <ClInclude Include="Source\Public\Renderer\Effects\Tonemapper.h" />
     <ClInclude Include="Source\Public\Renderer\GraphicsStructures.h" />
     <ClInclude Include="Source\Public\Renderer\Material.h" />
     <ClInclude Include="Source\Public\Renderer\Mesh.h" />

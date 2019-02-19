@@ -5,6 +5,7 @@
 class TransformComponent;
 class CameraComponent;
 
+struct CascadeShadows;
 
 class DirectionalLightComponent :
 	public Component
@@ -39,12 +40,13 @@ public:
 
 	Vector4 GetLightDirection() const;
 
-	DirectX::XMMATRIX GetViewMatrix() const;
-	DirectX::XMMATRIX GetOrtographicProjectionMatrix(DirectX::XMFLOAT3 min, DirectX::XMFLOAT3 max) const;
 
 
-	DirectX::XMMATRIX GetLightSpaceMatrix(CameraComponent* camera) const;
+	void GetLightSpaceMatrices(CameraComponent* camera, CascadeShadows* cascade) const;
 private:
+
+	DirectX::XMMATRIX GetGlobalLightMatrix(CameraComponent* camera) const;
+
 	TransformComponent* m_Transform;
 	DirectX::XMVECTOR m_LightColor;
 	float m_Intensity;
