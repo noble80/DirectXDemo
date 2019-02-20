@@ -34,7 +34,7 @@ void Tonemapper::Initialize(Renderer * renderer)
 {
 	output = renderer->m_FinalOutputTexture;
 	if(!ps)
-		ps = renderer->CreatePixelShader("Tonemapper");
+		ps = renderer->LoadPixelShader("Tonemapper");
 
 	if(!constantBuffer)
 		constantBuffer = renderer->CreateConstantBuffer(sizeof(TonemapperBuffer), "Tonemapper");

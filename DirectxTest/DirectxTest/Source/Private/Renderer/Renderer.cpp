@@ -12,6 +12,7 @@
 
 #include "Renderer\Texture2D.h"
 #include "Renderer\RenderTexture2D.h"
+#include "Renderer\Terrain.h"
 #include "Renderer\Material.h"
 #include "Renderer\Mesh.h"
 #include "Renderer\ShaderContainers.h"
@@ -46,7 +47,8 @@ Renderer::Renderer()
 	m_ActiveCamera = nullptr;
 	m_SceneTexture = nullptr;
 	m_ActiveCameraViewport = new D3D11_VIEWPORT{};
-	m_CascadeShadows.cascadeCount = 3;
+	m_CascadeShadows.cascadeCount = CASCADES_MAX;
+	m_Terrain = nullptr;
 }
 
 
@@ -264,11 +266,37 @@ bool Renderer::Initialize(Window * window)
 		hr = m_Device->CreateSamplerState(&SamDescShad, &m_ShadowSampler);
 		if(FAILED(hr))
 			return hr;
+
+
+		m_Context->VSSetSamplers(0, 1, m_SamplerLinearWrap.GetAddressOf());
+		m_Context->VSSetSamplers(1, 1, m_ShadowSampler.GetAddressOf());
+		m_Context->VSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
+		m_Context->VSSetSamplers(3, 1, m_SamplerNearest.GetAddressOf());
+
+
+		m_Context->HSSetSamplers(0, 1, m_SamplerLinearWrap.GetAddressOf());
+		m_Context->HSSetSamplers(1, 1, m_ShadowSampler.GetAddressOf());
+		m_Context->HSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
+		m_Context->HSSetSamplers(3, 1, m_SamplerNearest.GetAddressOf());
+
+
+		m_Context->DSSetSamplers(0, 1, m_SamplerLinearWrap.GetAddressOf());
+		m_Context->DSSetSamplers(1, 1, m_ShadowSampler.GetAddressOf());
+		m_Context->DSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
+		m_Context->DSSetSamplers(3, 1, m_SamplerNearest.GetAddressOf());
+
+
+		m_Context->PSSetSamplers(0, 1, m_SamplerLinearWrap.GetAddressOf());
+		m_Context->PSSetSamplers(1, 1, m_ShadowSampler.GetAddressOf());
+		m_Context->PSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
+		m_Context->PSSetSamplers(3, 1, m_SamplerNearest.GetAddressOf());
 	}
 
 	CreateRasterizerStates();
+	CreateBlendStates();
 	InitializeConstantBuffers();
 	InitializeDefaultShaders();
+	InitializeTerrain();
 
 	m_Window->m_Renderer = this;
 
@@ -344,8 +372,7 @@ void Renderer::RenderFrame(void)
 	RenderShadowMaps(m_ActiveCamera);
 	UpdateConstantBuffer(m_LightInfoBuffer);
 	InitializeGeometryPass();
-	m_Context->PSSetConstantBuffers(6, 1, &m_LightInfoBuffer->gpu.data);
-	m_Context->PSSetShaderResources(6, 1, &m_CascadeShadows.shadowMap->resourceView);
+	RenderTerrain();
 	for(auto& model : *m_ActiveModels)
 	{
 		for(auto& mesh : model.GetMeshes())
@@ -414,11 +441,16 @@ GeometryBuffer* Renderer::CreateGeometryBuffer(std::string name, std::vector<Ver
 
 
 
-VertexShader * Renderer::CreateVertexShader(std::string name)
+VertexShader * Renderer::LoadVertexShader(std::string name)
 {
+	VertexShader* vs = GetResourceManager()->GetResource<VertexShader>("name");
+
+	if(vs)
+		return vs;
+
 	std::vector<std::byte> VSBytes;
 
-	VertexShader* vs = GetResourceManager()->CreateResource<VertexShader>(name);
+	vs = GetResourceManager()->CreateResource<VertexShader>(name);
 	std::string fullPath = "../Shaders/" + name + "_VS.cso";
 	if(vs)
 	{
@@ -448,11 +480,46 @@ VertexShader * Renderer::CreateVertexShader(std::string name)
 	return nullptr;
 }
 
-VertexShader * Renderer::CreateVertexShaderPostProcess(std::string name)
+VertexShader * Renderer::LoadVertexShaderCustomLayout(std::string name, D3D11_INPUT_ELEMENT_DESC * layout, int layoutSize)
 {
+	VertexShader* vs = GetResourceManager()->GetResource<VertexShader>("name");
+
+	if(vs)
+		return vs;
+
 	std::vector<std::byte> VSBytes;
 
-	VertexShader* vs = GetResourceManager()->CreateResource<VertexShader>(name);
+	vs = GetResourceManager()->CreateResource<VertexShader>(name);
+	std::string fullPath = "../Shaders/" + name + "_VS.cso";
+	if(vs)
+	{
+		if(ShaderUtilities::LoadShaderFromFile(fullPath, VSBytes))
+		{
+			HRESULT hr = m_Device->CreateVertexShader(VSBytes.data(), VSBytes.size(), nullptr, &vs->d3dShader);
+			if(SUCCEEDED(hr))
+			{
+				hr = m_Device->CreateInputLayout(layout, layoutSize, VSBytes.data(), VSBytes.size(), &vs->inputLayout);
+
+				if(SUCCEEDED(hr))
+					return vs;
+			}
+		}
+		GetResourceManager()->RemoveResource(vs);
+	}
+
+	return nullptr;
+}
+
+VertexShader * Renderer::LoadVertexShaderNoLayout(std::string name)
+{
+	VertexShader* vs = GetResourceManager()->GetResource<VertexShader>("name");
+
+	if(vs)
+		return vs;
+
+	std::vector<std::byte> VSBytes;
+
+	vs = GetResourceManager()->CreateResource<VertexShader>(name);
 	std::string fullPath = "../Shaders/" + name + "_VS.cso";
 	if(vs)
 	{
@@ -470,10 +537,15 @@ VertexShader * Renderer::CreateVertexShaderPostProcess(std::string name)
 	return nullptr;
 }
 
-PixelShader * Renderer::CreatePixelShader(std::string name)
+PixelShader * Renderer::LoadPixelShader(std::string name)
 {
+	PixelShader* ps = GetResourceManager()->GetResource<PixelShader>("name");
+
+	if(ps)
+		return ps;
+
 	std::vector<std::byte> PSBytes;
-	PixelShader* ps = GetResourceManager()->CreateResource<PixelShader>(name);
+	ps = GetResourceManager()->CreateResource<PixelShader>(name);
 	std::string fullPath = "../Shaders/" + name + "_PS.cso";
 
 	if(ps)
@@ -489,23 +561,81 @@ PixelShader * Renderer::CreatePixelShader(std::string name)
 	return nullptr;
 }
 
-
-
-Material* Renderer::CreateMaterial(std::string name)
+HullShader * Renderer::LoadHullShader(std::string path)
 {
-	Material* mat = GetResourceManager()->CreateResource<Material>(name);
+	HullShader* hs = GetResourceManager()->GetResource<HullShader>("name");
+
+	if(hs)
+		return hs;
+
+	std::vector<std::byte> HSBytes;
+	hs = GetResourceManager()->CreateResource<HullShader>(path);
+	std::string fullPath = "../Shaders/" + path + "_HS.cso";
+
+	if(hs)
+	{
+		if(ShaderUtilities::LoadShaderFromFile(fullPath, HSBytes))
+		{
+			HRESULT hr = m_Device->CreateHullShader(HSBytes.data(), HSBytes.size(), nullptr, &hs->d3dShader);
+			if(SUCCEEDED(hr))
+				return hs;
+		}
+		GetResourceManager()->RemoveResource(hs);
+	}
+	return nullptr;
+}
+
+DomainShader * Renderer::LoadDomainShader(std::string path)
+{
+	DomainShader* ds = GetResourceManager()->GetResource<DomainShader>("name");
+
+	if(ds)
+		return ds;
+
+	std::vector<std::byte> DSBytes;
+	ds = GetResourceManager()->CreateResource<DomainShader>(path);
+	std::string fullPath = "../Shaders/" + path + "_DS.cso";
+
+	if(ds)
+	{
+		if(ShaderUtilities::LoadShaderFromFile(fullPath, DSBytes))
+		{
+			HRESULT hr = m_Device->CreateDomainShader(DSBytes.data(), DSBytes.size(), nullptr, &ds->d3dShader);
+			if(SUCCEEDED(hr))
+				return ds;
+		}
+		GetResourceManager()->RemoveResource(ds);
+	}
+	return nullptr;
+}
+
+
+
+Material* Renderer::LoadMaterial(std::string name)
+{
+	Material* mat = GetResourceManager()->GetResource<Material>(name);
+	if(mat)
+		return mat;
+
+	mat = GetResourceManager()->CreateResource<Material>(name);
 
 	return mat;
 }
 
-Texture2D * Renderer::CreateTextureFromFile(std::string name)
+Texture2D * Renderer::LoadTexture(std::string name)
 {
+	Texture2D* texture = GetResourceManager()->GetResource<Texture2D>(name);
+	if(texture)
+		return texture;
+
 	std::wstring str = L"../Textures/" + StringUtility::utf8_decode(name) + L".dds";
 
-	Texture2D* texture = GetResourceManager()->CreateResource<Texture2D>(name);
+	texture = GetResourceManager()->CreateResource<Texture2D>(name);
 	HRESULT hr = DirectX::CreateDDSTextureFromFile(m_Device.Get(), str.c_str(), &texture->texture, &texture->resourceView);
 	if(SUCCEEDED(hr))
+	{
 		return texture;
+	}
 
 	GetResourceManager()->RemoveResource(texture);
 	return nullptr;
@@ -561,10 +691,6 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 	m_Context->VSSetShader(mesh->material->vertexShader->d3dShader, nullptr, 0);
 	m_Context->VSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
 	m_Context->PSSetShader(mesh->material->pixelShader->d3dShader, nullptr, 0);
-	m_Context->PSSetSamplers(0, 1, m_SamplerLinearWrap.GetAddressOf());
-	m_Context->PSSetSamplers(1, 1, m_ShadowSampler.GetAddressOf());
-	m_Context->PSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
-	m_Context->PSSetSamplers(3, 1, m_SamplerNearest.GetAddressOf());
 	SetShaderResources(mesh->material);
 
 	m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
@@ -661,9 +787,13 @@ void Renderer::GenerateMips(ID3D11ShaderResourceView* tex)
 	m_Context->GenerateMips(tex);
 }
 
-RenderTexture2D* Renderer::CreateRenderTexture2D(D3D11_TEXTURE2D_DESC * desc, std::string name, bool useDepthStencil)
+RenderTexture2D* Renderer::LoadRenderTexture2D(D3D11_TEXTURE2D_DESC * desc, std::string name, bool useDepthStencil)
 {
 	RenderTexture2D* tex = GetResourceManager()->GetResource<RenderTexture2D>(name);
+	if(tex)
+		return tex;
+
+	tex = GetResourceManager()->GetResource<RenderTexture2D>(name);
 	if(tex)
 	{
 		GetResourceManager()->RemoveResource(tex);
@@ -718,38 +848,6 @@ RenderTexture2D* Renderer::CreateRenderTexture2D(D3D11_TEXTURE2D_DESC * desc, st
 	return tex;
 }
 
-RenderTexture2DAllMips * Renderer::CreateRenderTexture2DAllMips(D3D11_TEXTURE2D_DESC * desc, std::string name)
-{
-	RenderTexture2DAllMips* tex = GetResourceManager()->GetResource<RenderTexture2DAllMips>(name);
-	if(tex)
-	{
-		GetResourceManager()->RemoveResource(tex);
-	}
-
-	tex = GetResourceManager()->CreateResource<RenderTexture2DAllMips>(name);
-	HRESULT hr = m_Device->CreateTexture2D(desc, NULL, &tex->texture);
-
-	for(int i = 0; i < desc->MipLevels; ++i)
-	{
-		D3D11_RENDER_TARGET_VIEW_DESC rtvDesc{};
-		rtvDesc.Format = desc->Format;
-		rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-		rtvDesc.Texture2D.MipSlice = i;
-
-		ID3D11RenderTargetView* rtv;
-		hr = m_Device->CreateRenderTargetView(tex->texture, &rtvDesc, &rtv);
-		if(SUCCEEDED(hr))
-			tex->RTVs.push_back(rtv);
-	}
-	//D3D11_SHADER_RESOURCE_VIEW_DESC rvDesc{};
-	//rvDesc.Format = desc->Format;
-	//rvDesc.Texture2D.MipLevels = desc->MipLevels;
-	//rvDesc.Texture2D.MostDetailedMip = 0;
-	//rvDesc.
-	m_Device->CreateShaderResourceView(tex->texture, nullptr, &tex->resourceView);
-
-	return tex;
-}
 
 void Renderer::SetActiveLights(DirectX::XMFLOAT3 ambientColor, std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights)
 {
@@ -914,8 +1012,6 @@ void Renderer::RenderPostProcessing()
 {
 	m_Context->RSSetState(m_SceneRasterizerState.Get());
 	m_Context->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
-	m_Context->PSSetSamplers(3, 1, m_SamplerNearest.GetAddressOf());
-	m_Context->PSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
 	m_Context->IASetInputLayout(nullptr);
 	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
@@ -959,12 +1055,30 @@ void Renderer::RenderShadowMaps(CameraComponent* camera)
 		buffer->lightInfo.directionalShadowInfo.bias = m_DirectionalLight->GetShadowBias();
 		buffer->lightInfo.directionalShadowInfo.resolution = m_DirectionalLight->GetShadowResolution();
 	}
+
+	m_Context->PSSetConstantBuffers(6, 1, &m_LightInfoBuffer->gpu.data);
+	m_Context->PSSetShaderResources(6, 1, &m_CascadeShadows.shadowMap->resourceView);
 }
 
 
 void Renderer::InitializeDefaultShaders()
 {
-	FullscreenQuadVS = CreateVertexShaderPostProcess("FullscreenQuad");
+	FullscreenQuadVS = LoadVertexShaderNoLayout("FullscreenQuad");
+}
+
+void Renderer::InitializeTerrain()
+{
+	m_Terrain = GetResourceManager()->CreateResource<Terrain>("MainTerrain");
+	m_Terrain->Initialize(this, "Terrain", XMFLOAT3(8000.f, 1.0f, 8000.f));
+	D3D11_INPUT_ELEMENT_DESC vLayout[] =
+	{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+	m_Terrain->vs = LoadVertexShaderCustomLayout("Terrain", vLayout, 2);
+	m_Terrain->hs = LoadHullShader("Terrain");
+	m_Terrain->ds = LoadDomainShader("Terrain");
+	m_Terrain->ps = LoadPixelShader("Terrain");
 }
 
 void Renderer::InitializeConstantBuffers()
@@ -1053,6 +1167,24 @@ void Renderer::CreateRasterizerStates()
 
 }
 
+void Renderer::CreateBlendStates()
+{
+	D3D11_BLEND_DESC desc{};
+	desc.AlphaToCoverageEnable = false;
+	desc.RenderTarget[0].BlendEnable = false;
+	desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	m_Device->CreateBlendState(&desc, m_OpaqueBlendState.GetAddressOf());
+
+	desc.RenderTarget[0].BlendEnable = true;
+	desc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_DEST_ALPHA;
+	desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+	desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	m_Device->CreateBlendState(&desc, m_TransluscentBlendState.GetAddressOf());
+}
+
 void Renderer::SetShaderResources(Material * mat)
 {
 	for(int i = 0; i < 6; i++)
@@ -1089,11 +1221,71 @@ void Renderer::RenderSkybox(bool flipFaces)
 		m_Context->VSSetShader(mesh->material->vertexShader->d3dShader, nullptr, 0);
 		m_Context->VSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
 		m_Context->PSSetShader(mesh->material->pixelShader->d3dShader, nullptr, 0);
-		m_Context->PSSetSamplers(3, 1, m_SamplerSky.GetAddressOf());
 		SetShaderResources(mesh->material);
 
 		m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
 	}
+}
+
+void Renderer::RenderTerrain()
+{
+	if(m_Terrain == nullptr)
+		return;
+
+	UINT stride = sizeof(TerrainVertex);
+	UINT offset = 0;
+
+	CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
+
+	matrices->WorldViewProjection = XMMatrixTranspose(XMMatrixIdentity()*m_ViewProjection);
+	matrices->World = XMMatrixTranspose(XMMatrixIdentity());
+	UpdateConstantBuffer(m_TransformBuffer);
+	SurfaceProperties prop;
+	UpdateMaterialSurfaceBuffer(&prop);
+	UpdateConstantBuffer(m_Terrain->constantBuffer);
+	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST);
+	m_Context->IASetInputLayout(m_Terrain->vs->inputLayout);
+	m_Context->IASetVertexBuffers(0, 1, &m_Terrain->vertexBuffer, &stride, &offset);
+	m_Context->IASetIndexBuffer(m_Terrain->indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+	m_Context->VSSetShader(m_Terrain->vs->d3dShader, nullptr, 0);
+	m_Context->VSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
+	m_Context->VSSetConstantBuffers(7, 1, &m_Terrain->constantBuffer->gpu.data);
+	m_Context->VSSetShaderResources(7, 1, &m_Terrain->heightmap->resourceView);
+
+	m_Context->HSSetShader(m_Terrain->hs->d3dShader, nullptr, 0);
+	m_Context->HSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
+	m_Context->HSSetConstantBuffers(7, 1, &m_Terrain->constantBuffer->gpu.data);
+	m_Context->HSSetShaderResources(7, 1, &m_Terrain->heightmap->resourceView);
+
+	m_Context->DSSetShader(m_Terrain->ds->d3dShader, nullptr, 0);
+	m_Context->DSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
+	m_Context->DSSetConstantBuffers(7, 1, &m_Terrain->constantBuffer->gpu.data);
+	m_Context->DSSetShaderResources(7, 1, &m_Terrain->heightmap->resourceView);
+
+	m_Context->PSSetShader(m_Terrain->ps->d3dShader, nullptr, 0);
+	m_Context->PSSetConstantBuffers(7, 1, &m_Terrain->constantBuffer->gpu.data);
+	m_Context->PSSetShaderResources(7, 1, &m_Terrain->heightmap->resourceView);
+
+	m_Context->PSSetShaderResources(0, 1, &m_Terrain->macroColor->resourceView);
+	m_Context->PSSetShaderResources(1, 1, &m_Terrain->macroNormal->resourceView);
+	m_Context->PSSetShaderResources(12, 1, &m_Terrain->terrainMask->resourceView);
+
+
+	m_Context->PSSetShaderResources(8, 1, &m_Terrain->detailColorA->resourceView);
+	m_Context->PSSetShaderResources(9, 1, &m_Terrain->detailNormalA->resourceView);
+	m_Context->PSSetShaderResources(10, 1, &m_Terrain->detailColorB->resourceView);
+	m_Context->PSSetShaderResources(11, 1, &m_Terrain->detailNormalB->resourceView);
+
+
+	m_Context->PSSetShaderResources(3, 1, &m_Terrain->irradiance->resourceView);
+	m_Context->PSSetShaderResources(4, 1, &m_Terrain->specularRef->resourceView);
+	m_Context->PSSetShaderResources(5, 1, &m_Terrain->integration->resourceView);
+
+	m_Context->DrawIndexed(m_Terrain->patchQuadCount * 4, 0, 0);
+
+	m_Context->DSSetShader(nullptr, nullptr, 0);
+	m_Context->HSSetShader(nullptr, nullptr, 0);
 }
 
 void Renderer::UpdateLightBuffers()
@@ -1133,6 +1325,8 @@ void Renderer::UpdateSceneBuffer(float time)
 	UpdateConstantBuffer(m_SceneInfoBuffer);
 	m_Context->VSSetConstantBuffers(5, 1, &m_SceneInfoBuffer->gpu.data);
 	m_Context->PSSetConstantBuffers(5, 1, &m_SceneInfoBuffer->gpu.data);
+	m_Context->DSSetConstantBuffers(5, 1, &m_SceneInfoBuffer->gpu.data);
+	m_Context->HSSetConstantBuffers(5, 1, &m_SceneInfoBuffer->gpu.data);
 }
 
 void Renderer::UpdateMaterialSurfaceBuffer(const SurfaceProperties* prop)
@@ -1159,7 +1353,7 @@ ConstantBuffer * Renderer::CreateConstantBuffer(uint32_t size, std::string name)
 	HRESULT hr;
 
 	ConstantBuffer* buffer = GetResourceManager()->CreateResource<ConstantBuffer>(name);
-buffer->gpu.size = size;
+	buffer->gpu.size = size;
 
 	D3D11_BUFFER_DESC bd{};
 	bd.Usage = D3D11_USAGE_DYNAMIC;
@@ -1181,12 +1375,10 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, CameraComponent* c
 {
 	RenderShadowMaps(camera);
 	UpdateConstantBuffer(m_LightInfoBuffer);
-	m_Context->PSSetConstantBuffers(6, 1, &m_LightInfoBuffer->gpu.data);
-	m_Context->PSSetShaderResources(6, 1, &m_CascadeShadows.shadowMap->resourceView);
 	D3D11_TEXTURE2D_DESC desc;
 	ID3D11Texture2D* tex = reinterpret_cast<ID3D11Texture2D*>(output->texture);
 	tex->GetDesc(&desc);
-	RenderTexture2D* back = CreateRenderTexture2D(&desc, "RenderSceneToTextureBack", true);
+	RenderTexture2D* back = LoadRenderTexture2D(&desc, "RenderSceneToTextureBack", true);
 
 	float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 	m_Context->ClearDepthStencilView(back->depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
@@ -1204,7 +1396,7 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, CameraComponent* c
 	m_ViewProjection = camera->GetViewProjectionMatrix()*flip;
 	m_Context->RSSetViewports(1, &viewport);
 	m_Context->RSSetState(m_SkyRasterizerState.Get());
-
+	RenderTerrain();
 	for(auto& model : *m_ActiveModels)
 	{
 		for(auto& mesh : model.GetMeshes())
@@ -1226,13 +1418,18 @@ void Renderer::RenderDepthToTexture(ID3D11DepthStencilView* dsv)
 	m_Context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	m_Context->RSSetViewports(1, m_DirectionalLightViewport);
 
+	TerrainBuffer* buff = static_cast<TerrainBuffer*>(m_Terrain->constantBuffer->cpu);
+	//TerrainBuffer copy = *buff;
+	//buff->_TessellationMaxFactor = 1.0f;
+	//buff->_TessellationMinFactor = 1.0f;
+	//RenderTerrain();
 	for(auto& model : *m_ActiveModels)
 	{
 		for(auto& mesh : model.GetMeshes())
 		{
 			XMMATRIX transform = model.GetTransformMatrix();
 
-			UINT stride = sizeof(Vertex);
+			UINT stride = sizeof(TerrainVertex);
 			UINT offset = 0;
 
 			CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
@@ -1252,7 +1449,7 @@ void Renderer::RenderDepthToTexture(ID3D11DepthStencilView* dsv)
 			m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
 		}
 	}
-
+	//*buff = copy;
 	m_Context->OMSetRenderTargets(0, 0, 0);
 }
 

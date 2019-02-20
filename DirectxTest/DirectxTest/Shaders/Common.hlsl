@@ -1,10 +1,8 @@
-#pragma once
-
 #include "Constants.hlsl"
 
 #define POINTLIGHT_MAX 10
 #define SPOTLIGHT_MAX 10
-#define CASCADES_MAX 3
+#define CASCADES_MAX 5
 
 SamplerState sampleTypeWrap : register(s0);
 SamplerComparisonState sampleTypeShadows : register(s1);
@@ -97,6 +95,7 @@ float PCFBlur(float2 uv, int currCascade, int samples, float z0, float txlSize, 
     }
     output /= samples;
     //output = samplePCF(uv, 0, z0, shadowMap, txlSize);
+    //output = currCascade / CASCADES_MAX;
 
     return output;
 }
@@ -138,6 +137,16 @@ inline int HasEmissiveMask(int flags)
 inline int HasReflections(int flags)
 {
     return ((flags & 64) > 0 ? 1 : 0);
+}
+
+inline int IsMasked(int flags)
+{
+    return ((flags & 128) > 0 ? 1 : 0);
+}
+
+inline int IsTransluscent(int flags)
+{
+    return ((flags & 256) > 0 ? 1 : 0);
 }
 
 

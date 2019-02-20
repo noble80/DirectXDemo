@@ -35,3 +35,23 @@ void PixelShader::Release()
 	if(d3dShader)
 		d3dShader->Release();
 }
+
+DomainShader::~DomainShader()
+{
+}
+
+void DomainShader::Release()
+{
+	if(d3dShader)
+		d3dShader->Release();
+}
+
+HullShader::~HullShader()
+{
+}
+
+void HullShader::Release()
+{
+	if(d3dShader)
+		d3dShader->Release();
+}

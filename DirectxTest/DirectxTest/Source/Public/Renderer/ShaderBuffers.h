@@ -5,7 +5,7 @@
 
 #define POINTLIGHT_MAX 10
 #define SPOTLIGHT_MAX 10
-#define CASCADES_MAX 3
+#define CASCADES_MAX 5
 
 struct CSceneInfoBuffer
 {

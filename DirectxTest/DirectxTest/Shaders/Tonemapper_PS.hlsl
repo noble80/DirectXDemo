@@ -1,4 +1,3 @@
-#include "ACES.hlsl"
 
 Texture2D sceneColor : register(t0);
 Texture2D sceneDepth : register(t1);

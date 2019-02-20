@@ -20,3 +20,21 @@ struct PixelShader : public Resource
 
 	ID3D11PixelShader* d3dShader;
 };
+
+struct DomainShader : public Resource
+{
+	// Inherited via Resource
+	virtual ~DomainShader() override;
+	virtual void Release() override;
+
+	ID3D11DomainShader* d3dShader;
+};
+
+struct HullShader : public Resource
+{
+	// Inherited via Resource
+	virtual ~HullShader() override;
+	virtual void Release() override;
+
+	ID3D11HullShader* d3dShader;
+};

@@ -1,4 +1,3 @@
-#pragma once
 #include "Common.hlsl"
 
 cbuffer SceneInfoBuffer : register(b5)

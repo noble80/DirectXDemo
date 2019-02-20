@@ -16,7 +16,11 @@ struct ID3D11RasterizerState;
 struct ID3D11DepthStencilState;
 struct ID3D11Resource;
 struct ID3D11ShaderResourceView;
+struct D3D11_INPUT_ELEMENT_DESC;
+
 struct CTransformBuffer;
+
+struct ID3D11BlendState;
 
 class ResourceManager;
 class Window;
@@ -45,6 +49,9 @@ struct D3D11_TEXTURE2D_DESC;
 
 struct VertexShader;
 struct PixelShader;
+struct HullShader;
+struct DomainShader;
+struct Terrain;
 
 class Effect;
 
@@ -90,12 +97,15 @@ public:
 
 	GeometryBuffer* CreateGeometryBuffer(std::string name, std::vector<Vertex>* vertices, std::vector<uint32_t> indices);
 
-	VertexShader* CreateVertexShader(std::string path);
-	VertexShader* CreateVertexShaderPostProcess(std::string path);
-	PixelShader* CreatePixelShader(std::string path);
-	Material* CreateMaterial(std::string name);
+	VertexShader* LoadVertexShader(std::string path);
+	VertexShader* LoadVertexShaderCustomLayout(std::string path, D3D11_INPUT_ELEMENT_DESC* layout, int layoutSize);
+	VertexShader* LoadVertexShaderNoLayout(std::string path);
+	PixelShader* LoadPixelShader(std::string path);
+	HullShader* LoadHullShader(std::string path);
+	DomainShader* LoadDomainShader(std::string path);
+	Material* LoadMaterial(std::string name);
 
-	Texture2D* CreateTextureFromFile(std::string path);
+	Texture2D* LoadTexture(std::string path);
 	ConstantBuffer* CreateConstantBuffer(uint32_t size, std::string name);
 	ID3D11Buffer* CreateD3DBuffer(D3D11_BUFFER_DESC* desc, D3D11_SUBRESOURCE_DATA* InitData);
 
@@ -124,8 +134,7 @@ public:
 	void GenerateMips(ID3D11ShaderResourceView* tex);
 
 	inline RenderTexture2D* GetSceneTexture() { return m_SceneTexture; };
-	RenderTexture2DAllMips* CreateRenderTexture2DAllMips(D3D11_TEXTURE2D_DESC* desc, std::string name);
-	RenderTexture2D* CreateRenderTexture2D(D3D11_TEXTURE2D_DESC * desc, std::string name, bool useDepthStencil = false);
+	RenderTexture2D* LoadRenderTexture2D(D3D11_TEXTURE2D_DESC * desc, std::string name, bool useDepthStencil = false);
 
 	template<class T>
 	void AddPostProcessingEffect()
@@ -152,6 +161,8 @@ public:
 
 	void SetActiveLights(DirectX::XMFLOAT3 ambientColor, std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights);
 
+
+
 private:
 	bool m_Paused = true;
 
@@ -165,11 +176,17 @@ private:
 	void RenderPostProcessing();
 	void RenderShadowMaps(CameraComponent* camera);
 	void InitializeDefaultShaders();
+
+	void InitializeTerrain();
+	Terrain* m_Terrain;
+
 	void InitializeConstantBuffers();
 	void InitializeShadowMaps(float resolution);
 	void CreateRasterizerStates();
+	void CreateBlendStates();
 	void SetShaderResources(Material* mat);
 	void RenderSkybox(bool flipFaces = true);
+	void RenderTerrain();
 
 	Microsoft::WRL::ComPtr<IDXGISwapChain1>				m_Swapchain;		// ptr to swap chain
 	Microsoft::WRL::ComPtr<ID3D11Device1>				m_Device;			// ptr to device
@@ -183,6 +200,10 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>		m_SceneRasterizerState;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>		m_ShadowsRasterizerState;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>		m_SkyRasterizerState;
+
+	Microsoft::WRL::ComPtr<ID3D11BlendState>			m_OpaqueBlendState;
+	Microsoft::WRL::ComPtr<ID3D11BlendState>			m_MaskedBlendState;
+	Microsoft::WRL::ComPtr<ID3D11BlendState>			m_TransluscentBlendState;
 
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState>		m_DepthStencilState;
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState>		m_DepthStencilSkyState;

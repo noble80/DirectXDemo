@@ -1,5 +1,5 @@
 TextureCube skyCubemap : register(t0);
-SamplerState samplerSky : register(s3);
+SamplerState samplerSky : register(s2);
 
 struct INPUT_PIXEL
 {

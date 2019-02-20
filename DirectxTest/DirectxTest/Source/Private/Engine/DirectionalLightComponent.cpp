@@ -15,7 +15,7 @@ DirectionalLightComponent::DirectionalLightComponent()
 {
 	SetLightColor(XMVectorSet(1.f, 1.f, 1.f, 1.f));
 	SetLightIntensity(1.0f);
-	SetShadowDistance(100.f);
+	SetShadowDistance(200.f);
 	SetShadowResolution(2048);
 	SetShadowNearClip(0.01f);
 	SetShadowBias(0.004f);
@@ -81,7 +81,7 @@ void DirectionalLightComponent::GetLightSpaceMatrices(CameraComponent* camera, C
 	std::vector<float> cascadeSplits;
 	cascadeSplits.resize(cascadeCount);
 
-	float lambda = 0.5f; //Blend factor between logarithmic and linear distributions
+	float lambda = 0.98f; //Blend factor between logarithmic and linear distributions
 
 	float nearZ = camera->GetNearZ();
 	float farZ = camera->GetFarZ();

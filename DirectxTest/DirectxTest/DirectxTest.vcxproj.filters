@@ -14,6 +14,11 @@
     <FxCompile Include="Shaders\BloomBlur_PS.hlsl" />
     <FxCompile Include="Shaders\BloomCombine_PS.hlsl" />
     <FxCompile Include="Shaders\BloomMask_PS.hlsl" />
+    <FxCompile Include="Shaders\Terrain_DS.hlsl" />
+    <FxCompile Include="Shaders\Terrain_VS.hlsl" />
+    <FxCompile Include="Shaders\Terrain_PS.hlsl" />
+    <FxCompile Include="Shaders\Terrain_HS.hlsl" />
+    <FxCompile Include="Shaders\Interpolation.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />
@@ -53,6 +58,7 @@
     <ClCompile Include="Source\Private\Renderer\Effects\Effect.cpp" />
     <ClCompile Include="Source\Private\Renderer\Effects\Bloom.cpp" />
     <ClCompile Include="Source\Private\Renderer\Effects\Tonemapper.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Terrain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Public\Engine\CameraComponent.h" />
@@ -104,6 +110,7 @@
     <ClInclude Include="Source\Public\Renderer\Effects\Bloom.h" />
     <ClInclude Include="Source\Public\Renderer\Effects\Effect.h" />
     <ClInclude Include="Source\Public\Renderer\Effects\Tonemapper.h" />
-    <ClInclude Include="Shaders\ACES.hlsl" />
+    <ClInclude Include="Source\Public\Renderer\Terrain.h" />
+    <ClInclude Include="Shaders\Terrain_Includes.hlsl" />
   </ItemGroup>
 </Project>

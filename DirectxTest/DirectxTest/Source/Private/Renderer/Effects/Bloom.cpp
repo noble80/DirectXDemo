@@ -75,17 +75,17 @@ void Bloom::Initialize(Renderer * renderer)
 	D3D11_TEXTURE2D_DESC desc;
 	ID3D11Texture2D* tex = reinterpret_cast<ID3D11Texture2D*>(renderer->GetSceneTexture()->texture);
 	tex->GetDesc(&desc);
-	output = renderer->CreateRenderTexture2D(&desc, "BloomOutput");
+	output = renderer->LoadRenderTexture2D(&desc, "BloomOutput");
 	desc.Height /= 2;
 	desc.Width /= 2;
-	maskA = renderer->CreateRenderTexture2D(&desc, "BloomMaskA");
-	maskB = renderer->CreateRenderTexture2D(&desc, "BloomMaskB");
+	maskA = renderer->LoadRenderTexture2D(&desc, "BloomMaskA");
+	maskB = renderer->LoadRenderTexture2D(&desc, "BloomMaskB");
 	if(!maskShader)
-		maskShader = renderer->CreatePixelShader("BloomMask");
+		maskShader = renderer->LoadPixelShader("BloomMask");
 	if(!blurShader)
-		blurShader = renderer->CreatePixelShader("BloomBlur");
+		blurShader = renderer->LoadPixelShader("BloomBlur");
 	if(!combineShader)
-		combineShader = renderer->CreatePixelShader("BloomCombine");
+		combineShader = renderer->LoadPixelShader("BloomCombine");
 
 	if(!constantBuffer)
 		constantBuffer = renderer->CreateConstantBuffer(sizeof(BloomBuffer), "Bloom");

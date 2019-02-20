@@ -34,8 +34,18 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
 
     if (HasDiffuseTexture(_textureFlags))
     {
-        float3 diffuse = diffuseMap.Sample(sampleTypeWrap, pIn.Tex).xyz;
+        float4 diffuse = diffuseMap.Sample(sampleTypeWrap, pIn.Tex);
+
+        if (IsMasked(_textureFlags))
+        {
+            clip(diffuse.a < 0.1f ? -1 : 1);
+        }
+
         surface.diffuseColor *= diffuse;
+        if (IsTransluscent(_textureFlags))
+        {
+            surface.diffuseColor *= diffuse.xyz * diffuse.w;
+        }
     }
     surface.diffuseColor = saturate(surface.diffuseColor);
 
@@ -63,7 +73,7 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
 
     if (HasNormalTexture(_textureFlags))
     {
-        normalSample = normalMap.Sample(sampleTypeWrap, pIn.Tex).wyz * 2.f - 1.f;
+        normalSample = normalMap.Sample(sampleTypeWrap, pIn.Tex).xyz * 2.f - 1.f;
         normalSample.z = sqrt(1 - normalSample.x * normalSample.x - normalSample.y * normalSample.y);
         surface.normal = pIn.TangentWS * normalSample.x + pIn.BinormalWS * normalSample.y + pIn.NormalWS * normalSample.z;
     }
@@ -145,7 +155,7 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
         float3 diffuse = IBLDiffuse.Sample(sampleTypeWrap, N).rgb;
         float3 specular = IBLSpecular.SampleLevel(sampleTypeWrap, reflectionVector, surface.roughness * 10.f).rgb;
         float2 integration = IBLIntegration.Sample(sampleTypeNearest, float2(NdotV, 1.f - surface.roughness)).rg;
-        color += IBL(surface, viewWS, specColor, diffuse, specular, integration);
+        color += IBL(surface, viewWS, specColor, diffuse, specular, integration)*surface.ambient;
     }
 
     // Reinhard operator. Supposedly preserves HDR values better
