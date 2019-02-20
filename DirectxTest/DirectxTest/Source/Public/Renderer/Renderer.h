@@ -83,7 +83,7 @@ public:
 	void DrawDebugShape(GeometryBuffer* shape, const DirectX::XMMATRIX& transform);
 	void DrawMesh(const Mesh* mesh, const DirectX::XMMATRIX& transform);
 
-	void UpdateLightBuffers(DirectX::XMFLOAT3 ambientColor, std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights);
+	void UpdateLightBuffers();
 	void UpdateSceneBuffer(float time);
 	void UpdateMaterialSurfaceBuffer(const SurfaceProperties* prop);
 	void UpdateConstantBuffer(ConstantBuffer* buffer);
@@ -101,7 +101,7 @@ public:
 
 	inline void SetActiveCamera(CameraComponent* camera) { m_ActiveCamera = camera; };
 
-	void RenderSceneToTexture(RenderTexture2D* output);
+	void RenderSceneToTexture(RenderTexture2D * output, CameraComponent* camera);
 	void RenderDepthToTexture(ID3D11DepthStencilView* dsv);
 
 
@@ -125,7 +125,7 @@ public:
 
 	inline RenderTexture2D* GetSceneTexture() { return m_SceneTexture; };
 	RenderTexture2DAllMips* CreateRenderTexture2DAllMips(D3D11_TEXTURE2D_DESC* desc, std::string name);
-	RenderTexture2D* CreateRenderTexture2D(D3D11_TEXTURE2D_DESC * desc, std::string name);
+	RenderTexture2D* CreateRenderTexture2D(D3D11_TEXTURE2D_DESC * desc, std::string name, bool useDepthStencil = false);
 
 	template<class T>
 	void AddPostProcessingEffect()
@@ -135,6 +135,23 @@ public:
 		m_PostProcessChain.push_back(effect);
 		effect->Initialize(this);
 	}
+
+	template<class T>
+	T* GetPostProcessingEffect()
+	{
+		static_assert(std::is_base_of<Effect, T>::value, "Template effect not derived from Effect");
+
+		for(auto& effect : m_PostProcessChain)
+		{
+			if(typeid(T) == typeid(*effect))
+				return static_cast<T*>(effect);
+		}
+
+		return nullptr;
+	}
+
+	void SetActiveLights(DirectX::XMFLOAT3 ambientColor, std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights);
+
 private:
 	bool m_Paused = true;
 
@@ -146,13 +163,13 @@ private:
 
 	void InitializePostProcessing();
 	void RenderPostProcessing();
-	void RenderShadowMaps();
+	void RenderShadowMaps(CameraComponent* camera);
 	void InitializeDefaultShaders();
 	void InitializeConstantBuffers();
 	void InitializeShadowMaps(float resolution);
 	void CreateRasterizerStates();
 	void SetShaderResources(Material* mat);
-	void RenderSkybox();
+	void RenderSkybox(bool flipFaces = true);
 
 	Microsoft::WRL::ComPtr<IDXGISwapChain1>				m_Swapchain;		// ptr to swap chain
 	Microsoft::WRL::ComPtr<ID3D11Device1>				m_Device;			// ptr to device
@@ -180,7 +197,11 @@ private:
 	std::vector<MeshComponent>*							m_ActiveModels;
 	RenderTexture2D*									m_FinalOutputTexture;
 	RenderTexture2D*									m_SceneTexture;
+
 	DirectionalLightComponent*							m_DirectionalLight;
+	std::vector<PointLightComponent>*					m_PointLights;
+	std::vector<SpotLightComponent>*					m_SpotLights;
+	DirectX::XMFLOAT3									m_AmbientColor;
 
 	D3D11_VIEWPORT*										m_ActiveCameraViewport;
 	D3D11_VIEWPORT*										m_DirectionalLightViewport;

@@ -73,7 +73,8 @@ RenderTexture2D* Bloom::RenderEffect(Renderer * renderer, RenderTexture2D* prev)
 void Bloom::Initialize(Renderer * renderer)
 {
 	D3D11_TEXTURE2D_DESC desc;
-	renderer->GetSceneTexture()->texture->GetDesc(&desc);
+	ID3D11Texture2D* tex = reinterpret_cast<ID3D11Texture2D*>(renderer->GetSceneTexture()->texture);
+	tex->GetDesc(&desc);
 	output = renderer->CreateRenderTexture2D(&desc, "BloomOutput");
 	desc.Height /= 2;
 	desc.Width /= 2;
@@ -90,8 +91,8 @@ void Bloom::Initialize(Renderer * renderer)
 		constantBuffer = renderer->CreateConstantBuffer(sizeof(BloomBuffer), "Bloom");
 	BloomBuffer* buff = static_cast<BloomBuffer*>(constantBuffer->cpu);
 	buff->currMip = 0;
-	buff->threshold = 0.8f;
-	buff->intensity = .3f;
+	buff->threshold = 1.0f;
+	buff->intensity = .6f;
 	buff->horizontal = 1;
 	buff->resolution.x = desc.Width;
 	buff->resolution.y = desc.Height;
@@ -107,4 +108,16 @@ void Bloom::Release(Renderer* renderer)
 	renderer->GetResourceManager()->RemoveResource(blurShader);
 	renderer->GetResourceManager()->RemoveResource(combineShader);
 
+}
+
+void Bloom::SetIntensity(float i)
+{
+	BloomBuffer* buff = static_cast<BloomBuffer*>(constantBuffer->cpu);
+	buff->intensity = std::clamp(i, 0.f, 10.f);
+}
+
+void Bloom::AddIntensity(float i)
+{
+	BloomBuffer* buff = static_cast<BloomBuffer*>(constantBuffer->cpu);
+	buff->intensity = std::clamp(buff->intensity + i, 0.f, 10.f);
 }

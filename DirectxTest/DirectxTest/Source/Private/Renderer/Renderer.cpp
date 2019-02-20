@@ -340,7 +340,11 @@ bool Renderer::Draw()
 
 void Renderer::RenderFrame(void)
 {
+	UpdateLightBuffers();
+	RenderShadowMaps(m_ActiveCamera);
+	UpdateConstantBuffer(m_LightInfoBuffer);
 	InitializeGeometryPass();
+	m_Context->PSSetConstantBuffers(6, 1, &m_LightInfoBuffer->gpu.data);
 	m_Context->PSSetShaderResources(6, 1, &m_CascadeShadows.shadowMap->resourceView);
 	for(auto& model : *m_ActiveModels)
 	{
@@ -499,7 +503,7 @@ Texture2D * Renderer::CreateTextureFromFile(std::string name)
 	std::wstring str = L"../Textures/" + StringUtility::utf8_decode(name) + L".dds";
 
 	Texture2D* texture = GetResourceManager()->CreateResource<Texture2D>(name);
-	HRESULT hr = DirectX::CreateDDSTextureFromFile(m_Device.Get(), str.c_str(), &texture->d3dresource, &texture->shaderResourceView);
+	HRESULT hr = DirectX::CreateDDSTextureFromFile(m_Device.Get(), str.c_str(), &texture->texture, &texture->resourceView);
 	if(SUCCEEDED(hr))
 		return texture;
 
@@ -569,9 +573,7 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 void Renderer::SetDirectionalLight(DirectionalLightComponent * light)
 {
 	m_DirectionalLight = light;
-
 	InitializeShadowMaps(light->GetShadowResolution());
-
 }
 
 bool Renderer::FullScreenModeSwitched()
@@ -659,16 +661,23 @@ void Renderer::GenerateMips(ID3D11ShaderResourceView* tex)
 	m_Context->GenerateMips(tex);
 }
 
-RenderTexture2D* Renderer::CreateRenderTexture2D(D3D11_TEXTURE2D_DESC * desc, std::string name)
+RenderTexture2D* Renderer::CreateRenderTexture2D(D3D11_TEXTURE2D_DESC * desc, std::string name, bool useDepthStencil)
 {
 	RenderTexture2D* tex = GetResourceManager()->GetResource<RenderTexture2D>(name);
 	if(tex)
 	{
 		GetResourceManager()->RemoveResource(tex);
 	}
-
+	desc->BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+	desc->MipLevels = 1;
+	desc->SampleDesc.Count = 1;
+	desc->ArraySize = 1;
 	tex = GetResourceManager()->CreateResource<RenderTexture2D>(name);
-	HRESULT hr = m_Device->CreateTexture2D(desc, NULL, &tex->texture);
+	tex->dimensions.x = desc->Width;
+	tex->dimensions.y = desc->Height;
+
+	ID3D11Texture2D** ptr = reinterpret_cast<ID3D11Texture2D**>(&tex->texture);
+	HRESULT hr = m_Device->CreateTexture2D(desc, NULL, ptr);
 
 	D3D11_RENDER_TARGET_VIEW_DESC rtvDesc{};
 	rtvDesc.Format = desc->Format;
@@ -677,6 +686,34 @@ RenderTexture2D* Renderer::CreateRenderTexture2D(D3D11_TEXTURE2D_DESC * desc, st
 
 	hr = m_Device->CreateRenderTargetView(tex->texture, &rtvDesc, &tex->renderTargetView);
 	m_Device->CreateShaderResourceView(tex->texture, nullptr, &tex->resourceView);
+
+	if(useDepthStencil)
+	{
+		ComPtr<ID3D11Texture2D> stencilTx;
+		{
+			// Create depth stencil texture
+			D3D11_TEXTURE2D_DESC descDepth{};
+			descDepth.Width = desc->Width;
+			descDepth.Height = desc->Height;
+			descDepth.MipLevels = 1;
+			descDepth.ArraySize = 1;
+			descDepth.Format = DXGI_FORMAT_R24G8_TYPELESS;
+			descDepth.SampleDesc.Count = 1;
+			descDepth.SampleDesc.Quality = 0;
+			descDepth.Usage = D3D11_USAGE_DEFAULT;
+			descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+			descDepth.CPUAccessFlags = 0;
+			descDepth.MiscFlags = 0;
+			hr = m_Device->CreateTexture2D(&descDepth, nullptr, &stencilTx);
+
+			// Create the depth stencil view
+			D3D11_DEPTH_STENCIL_VIEW_DESC descDSV{};
+			descDSV.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+			descDSV.Texture2D.MipSlice = 0;
+			hr = m_Device->CreateDepthStencilView(stencilTx.Get(), &descDSV, &tex->depthStencilView);
+		}
+	}
 
 	return tex;
 }
@@ -712,6 +749,13 @@ RenderTexture2DAllMips * Renderer::CreateRenderTexture2DAllMips(D3D11_TEXTURE2D_
 	m_Device->CreateShaderResourceView(tex->texture, nullptr, &tex->resourceView);
 
 	return tex;
+}
+
+void Renderer::SetActiveLights(DirectX::XMFLOAT3 ambientColor, std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights)
+{
+	m_PointLights = pointLights;
+	m_SpotLights = spotLights;
+	m_AmbientColor = ambientColor;
 }
 
 bool Renderer::InitializeSwapChain()
@@ -814,7 +858,8 @@ bool Renderer::CreateIntermediateSceneTexture(ID3D11Texture2D* backBuffer, ID3D1
 	textureDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	// Create the render target texture.
-	HRESULT hr = m_Device->CreateTexture2D(&textureDesc, NULL, &m_SceneTexture->texture);
+	ID3D11Texture2D** ptr = reinterpret_cast<ID3D11Texture2D**>(&m_SceneTexture->texture);
+	HRESULT hr = m_Device->CreateTexture2D(&textureDesc, NULL, ptr);
 
 	if(SUCCEEDED(hr))
 	{
@@ -884,19 +929,35 @@ void Renderer::RenderPostProcessing()
 	}
 }
 
-void Renderer::RenderShadowMaps()
+void Renderer::RenderShadowMaps(CameraComponent* camera)
 {
 	ID3D11ShaderResourceView* null[8] = {nullptr};
 
 	m_Context->PSSetShaderResources(0, 8, null);
 
 	CLightInfoBuffer* buffer = static_cast<CLightInfoBuffer*>(m_LightInfoBuffer->cpu);
-	m_DirectionalLight->GetLightSpaceMatrices(m_ActiveCamera, &m_CascadeShadows);
+	m_DirectionalLight->GetLightSpaceMatrices(camera, &m_CascadeShadows);
 	for(int i = 0; i < m_CascadeShadows.cascadeCount; ++i)
 	{
 		m_ViewProjection = m_CascadeShadows.cascadeMatrices[i];
 		m_Context->RSSetState(m_ShadowsRasterizerState.Get());
 		RenderDepthToTexture(m_CascadeShadows.shadowMap->DSVs[i]);
+	}
+
+	{//Directional light
+		XMVECTOR color = m_DirectionalLight->GetLightColor()*m_DirectionalLight->GetLightIntensity();
+		XMStoreFloat3(&buffer->lightInfo.directionalLight.color, color);
+		XMVECTOR vec = m_DirectionalLight->GetLightDirection();
+		XMStoreFloat3(&buffer->lightInfo.directionalLight.direction, vec);
+
+		for(int i = 0; i < m_CascadeShadows.cascadeCount; i++)
+		{
+			buffer->lightInfo.directionalShadowInfo.cascades[i].lightSpace = XMMatrixTranspose(m_CascadeShadows.cascadeMatrices[i]);
+			buffer->lightInfo.directionalShadowInfo.cascades[i].cascadeSplit = m_CascadeShadows.cascadeSplits[i];
+		}
+		buffer->lightInfo.directionalShadowInfo.normalOffset = m_DirectionalLight->GetNormalOffset();
+		buffer->lightInfo.directionalShadowInfo.bias = m_DirectionalLight->GetShadowBias();
+		buffer->lightInfo.directionalShadowInfo.resolution = m_DirectionalLight->GetShadowResolution();
 	}
 }
 
@@ -997,14 +1058,18 @@ void Renderer::SetShaderResources(Material * mat)
 	for(int i = 0; i < 6; i++)
 	{
 		if(mat->textures[i])
-			m_Context->PSSetShaderResources(i, 1, &mat->textures[i]->shaderResourceView);
+			m_Context->PSSetShaderResources(i, 1, &mat->textures[i]->resourceView);
 	}
 }
 
-void Renderer::RenderSkybox()
+void Renderer::RenderSkybox(bool flipFaces)
 {
 	XMMATRIX transform = XMMatrixScaling(1000.0f, 1000.0f, 1000.0f)*XMMatrixTranslationFromVector(m_ActiveCamera->GetCameraPosition());
-	m_Context->RSSetState(m_SkyRasterizerState.Get());
+	if(flipFaces)
+		m_Context->RSSetState(m_SkyRasterizerState.Get());
+	else
+		m_Context->RSSetState(m_SceneRasterizerState.Get());
+
 	m_Context->OMSetDepthStencilState(m_DepthStencilSkyState.Get(), 0);
 	Mesh* mesh = GetResourceManager()->GetResource<Mesh>("SkySphere");
 	if(mesh)
@@ -1031,52 +1096,33 @@ void Renderer::RenderSkybox()
 	}
 }
 
-void Renderer::UpdateLightBuffers(XMFLOAT3 ambientColor, std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights)
+void Renderer::UpdateLightBuffers()
 {
-	RenderShadowMaps();
-
 	CLightInfoBuffer* buffer = static_cast<CLightInfoBuffer*>(m_LightInfoBuffer->cpu);
-	{//Directional light
-		XMVECTOR color = m_DirectionalLight->GetLightColor()*m_DirectionalLight->GetLightIntensity();
-		XMStoreFloat3(&buffer->lightInfo.directionalLight.color, color);
-		XMVECTOR vec = m_DirectionalLight->GetLightDirection();
-		XMStoreFloat3(&buffer->lightInfo.directionalLight.direction, vec);
-
-		for(int i = 0; i < m_CascadeShadows.cascadeCount; i++)
-		{
-			buffer->lightInfo.directionalShadowInfo.cascades[i].lightSpace = XMMatrixTranspose(m_CascadeShadows.cascadeMatrices[i]);
-			buffer->lightInfo.directionalShadowInfo.cascades[i].cascadeSplit = m_CascadeShadows.cascadeSplits[i];
-		}
-		buffer->lightInfo.directionalShadowInfo.normalOffset = m_DirectionalLight->GetNormalOffset();
-		buffer->lightInfo.directionalShadowInfo.bias = m_DirectionalLight->GetShadowBias();
-		buffer->lightInfo.directionalShadowInfo.resolution = m_DirectionalLight->GetShadowResolution();
-	}
 	//Point lights
-	buffer->lightInfo.pointLightCount = pointLights->size();
+	buffer->lightInfo.pointLightCount = m_PointLights->size();
 	for(int i = 0; i < buffer->lightInfo.pointLightCount; ++i)
 	{
-		XMVECTOR color = (*pointLights)[i].GetLightColor()*(*pointLights)[i].GetLightIntensity();
+		XMVECTOR color = (*m_PointLights)[i].GetLightColor()*(*m_PointLights)[i].GetLightIntensity();
 		XMStoreFloat3(&buffer->lightInfo.pointLights[i].color, color);
-		XMStoreFloat3(&buffer->lightInfo.pointLights[i].position, (*pointLights)[i].GetPosition());
-		buffer->lightInfo.pointLights[i].radius = (*pointLights)[i].GetRadius();
+		XMStoreFloat3(&buffer->lightInfo.pointLights[i].position, (*m_PointLights)[i].GetPosition());
+		buffer->lightInfo.pointLights[i].radius = (*m_PointLights)[i].GetRadius();
 	}
 
 	//Spot lights
-	buffer->lightInfo.spotLightCount = spotLights->size();
+	buffer->lightInfo.spotLightCount = m_SpotLights->size();
 	for(int i = 0; i < buffer->lightInfo.spotLightCount; ++i)
 	{
-		XMVECTOR color = (*spotLights)[i].GetLightColor()*(*spotLights)[i].GetLightIntensity();
+		XMVECTOR color = (*m_SpotLights)[i].GetLightColor()*(*m_SpotLights)[i].GetLightIntensity();
 		XMStoreFloat3(&buffer->lightInfo.spotLights[i].color, color);
-		XMStoreFloat3(&buffer->lightInfo.spotLights[i].position, (*spotLights)[i].GetPosition());
-		XMStoreFloat3(&buffer->lightInfo.spotLights[i].direction, (*spotLights)[i].GetLightDirection());
-		buffer->lightInfo.spotLights[i].radius = (*spotLights)[i].GetRadius();
-		buffer->lightInfo.spotLights[i].innerCone = cos(XMConvertToRadians((*spotLights)[i].GetInnerAngle()));
-		buffer->lightInfo.spotLights[i].outerCone = cos(XMConvertToRadians((*spotLights)[i].GetOuterAngle()));
+		XMStoreFloat3(&buffer->lightInfo.spotLights[i].position, (*m_SpotLights)[i].GetPosition());
+		XMStoreFloat3(&buffer->lightInfo.spotLights[i].direction, (*m_SpotLights)[i].GetLightDirection());
+		buffer->lightInfo.spotLights[i].radius = (*m_SpotLights)[i].GetRadius();
+		buffer->lightInfo.spotLights[i].innerCone = cos(XMConvertToRadians((*m_SpotLights)[i].GetInnerAngle()));
+		buffer->lightInfo.spotLights[i].outerCone = cos(XMConvertToRadians((*m_SpotLights)[i].GetOuterAngle()));
 	}
-	buffer->lightInfo.ambientColor = ambientColor;
+	buffer->lightInfo.ambientColor = m_AmbientColor;
 
-	UpdateConstantBuffer(m_LightInfoBuffer);
-	m_Context->PSSetConstantBuffers(6, 1, &m_LightInfoBuffer->gpu.data);
 }
 
 void Renderer::UpdateSceneBuffer(float time)
@@ -1113,7 +1159,7 @@ ConstantBuffer * Renderer::CreateConstantBuffer(uint32_t size, std::string name)
 	HRESULT hr;
 
 	ConstantBuffer* buffer = GetResourceManager()->CreateResource<ConstantBuffer>(name);
-	buffer->gpu.size = size;
+buffer->gpu.size = size;
 
 	D3D11_BUFFER_DESC bd{};
 	bd.Usage = D3D11_USAGE_DYNAMIC;
@@ -1131,13 +1177,33 @@ ConstantBuffer * Renderer::CreateConstantBuffer(uint32_t size, std::string name)
 	return nullptr;
 }
 
-void Renderer::RenderSceneToTexture(RenderTexture2D * output)
+void Renderer::RenderSceneToTexture(RenderTexture2D * output, CameraComponent* camera)
 {
+	RenderShadowMaps(camera);
+	UpdateConstantBuffer(m_LightInfoBuffer);
+	m_Context->PSSetConstantBuffers(6, 1, &m_LightInfoBuffer->gpu.data);
+	m_Context->PSSetShaderResources(6, 1, &m_CascadeShadows.shadowMap->resourceView);
+	D3D11_TEXTURE2D_DESC desc;
+	ID3D11Texture2D* tex = reinterpret_cast<ID3D11Texture2D*>(output->texture);
+	tex->GetDesc(&desc);
+	RenderTexture2D* back = CreateRenderTexture2D(&desc, "RenderSceneToTextureBack", true);
+
 	float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-	m_Context->ClearDepthStencilView(output->depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	m_Context->ClearRenderTargetView(output->renderTargetView, color);
-	m_Context->OMSetRenderTargets(1, &output->renderTargetView, output->depthStencilView);
-	m_Context->RSSetViewports(1, m_DirectionalLightViewport);
+	m_Context->ClearDepthStencilView(back->depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	m_Context->ClearRenderTargetView(back->renderTargetView, color);
+	m_Context->OMSetRenderTargets(1, &back->renderTargetView, back->depthStencilView);
+	D3D11_VIEWPORT viewport;
+	viewport.Height = back->dimensions.y;
+	viewport.Width = back->dimensions.x;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+	viewport.TopLeftX = 0.0f;
+	viewport.TopLeftY = 0.0f;
+	XMMATRIX flip = XMMatrixScaling(1.0f, -1.0f, 1.0f);
+	m_View = camera->GetViewMatrix()*flip;
+	m_ViewProjection = camera->GetViewProjectionMatrix()*flip;
+	m_Context->RSSetViewports(1, &viewport);
+	m_Context->RSSetState(m_SkyRasterizerState.Get());
 
 	for(auto& model : *m_ActiveModels)
 	{
@@ -1146,9 +1212,11 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output)
 			DrawMesh(mesh, model.GetTransformMatrix());
 		}
 	}
-	RenderSkybox();
-
+	RenderSkybox(false);
 	m_Context->OMSetRenderTargets(0, 0, nullptr);
+
+	m_Context->CopyResource(output->texture, back->texture);
+	GetResourceManager()->RemoveResource(back);
 }
 
 void Renderer::RenderDepthToTexture(ID3D11DepthStencilView* dsv)

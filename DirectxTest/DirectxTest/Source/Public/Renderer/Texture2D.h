@@ -3,8 +3,8 @@
 
 struct Texture2D : Resource
 {
-	ID3D11Resource* d3dresource;
-	ID3D11ShaderResourceView* shaderResourceView;
+	ID3D11Resource* texture;
+	ID3D11ShaderResourceView* resourceView;
 
 	virtual ~Texture2D() override;
 

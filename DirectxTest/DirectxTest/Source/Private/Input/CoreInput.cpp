@@ -27,6 +27,8 @@ void CoreInput::InitializeInput(HWND hwnd)
 	Rid[1].dwFlags = 0;   // adds HID keyboard and also ignores legacy keyboard messages
 	Rid[1].hwndTarget = 0;
 
+
+
 	if(RegisterRawInputDevices(Rid, 2, sizeof(Rid[0])) == FALSE)
 	{
 		DWORD error = GetLastError();
@@ -57,14 +59,28 @@ void CoreInput::GatherInput(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		 CoreInput::mouseX += raw.data.mouse.lLastX;
 		 CoreInput::mouseY += raw.data.mouse.lLastY;
 	}
+
 	if(raw.header.dwType == RIM_TYPEKEYBOARD)
 	{
 		keyStates[raw.data.keyboard.VKey] &= 0xfe;
 		keyStates[raw.data.keyboard.VKey] |= 1 - (RI_KEY_BREAK & raw.data.keyboard.Flags);
 	}
+
+}
+
+void CoreInput::UpdateInput()
+{
+	for(int i = 0; i < 256; i++)
+	{
+		const uint8_t last = 1 & keyStates[i];
+		keyStates[i] = (keyStates[i] << 1) | last;
+	}
+
+	ResetAxes();
 }
 
 KeyState CoreInput::GetKeyState(KeyCode target)
 {
-	return static_cast<KeyState>(0x3 & keyStates[static_cast<int>(target)]);
+	KeyState output = static_cast<KeyState>(0x3 & keyStates[static_cast<int>(target)]);
+	return output;
 }

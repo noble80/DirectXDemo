@@ -125,10 +125,10 @@ namespace
     inline HANDLE safe_handle( HANDLE h ) { return (h == INVALID_HANDLE_VALUE) ? nullptr : h; }
 
     template<UINT TNameLength>
-    inline void SetDebugObjectName(_In_ ID3D11DeviceChild* d3dresource, _In_ const char (&name)[TNameLength])
+    inline void SetDebugObjectName(_In_ ID3D11DeviceChild* texture, _In_ const char (&name)[TNameLength])
     {
     #if defined(_DEBUG) || defined(PROFILE)
-        d3dresource->SetPrivateData(WKPDID_D3DDebugObjectName, TNameLength - 1, name);
+        texture->SetPrivateData(WKPDID_D3DDebugObjectName, TNameLength - 1, name);
     #else
         UNREFERENCED_PARAMETER(resource);
         UNREFERENCED_PARAMETER(name);

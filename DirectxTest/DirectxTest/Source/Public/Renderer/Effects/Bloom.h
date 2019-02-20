@@ -21,6 +21,9 @@ public:
 	virtual RenderTexture2D* RenderEffect(Renderer* renderer, RenderTexture2D* prev) override;
 	virtual void Initialize(Renderer* renderer) override;
 	virtual void Release(Renderer* renderer) override;
+
+	void SetIntensity(float i);
+	void AddIntensity(float i);
 private:
 	ConstantBuffer* constantBuffer;
 	RenderTexture2D* maskA;

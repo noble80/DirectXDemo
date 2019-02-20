@@ -6,6 +6,8 @@
 #include "Engine\SceneManager.h"
 #include "Renderer\ResourceManager.h"
 
+#include "Renderer\Effects\Tonemapper.h"
+#include "Renderer\Effects\Bloom.h"
 #include <DirectXColors.h>
 
 #include <windowsx.h>
@@ -15,6 +17,7 @@
 #include "Renderer\GraphicsStructures.h"
 #include "Renderer\Material.h"
 #include "Renderer\Texture2D.h"
+#include "Renderer\RenderTexture2D.h"
 #include "Renderer\Mesh.h"
 #include "Renderer\ShaderBuffers.h"
 #include "Importer\MeshImporter.h"
@@ -144,6 +147,14 @@ int WINAPI WinMain(
 		Material* flagMat = renderer->CreateMaterial("Flag");
 		flagMat->vertexShader = renderer->CreateVertexShader("Flag");
 		flagMat->pixelShader = defaultPS;
+		flagMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP;
+		{
+			D3D11_TEXTURE2D_DESC desc{};
+			desc.Width = 1024;
+			desc.Height = 1024;
+			desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+			flagMat->diffuseMap = renderer->CreateRenderTexture2D(&desc, "FlagCapture");
+		}
 
 		Material* skyMat = renderer->CreateMaterial("Sky");
 		skyMat->vertexShader = renderer->CreateVertexShader("Sky");
@@ -433,10 +444,6 @@ int WINAPI WinMain(
 			z += (CoreInput::GetKeyState(KeyCode::W) == KeyState::Down) * 10.f * deltaTime;
 			z -= (CoreInput::GetKeyState(KeyCode::S) == KeyState::Down) * 10.f * deltaTime;
 
-			float val = 0.f;
-			val += (CoreInput::GetKeyState(KeyCode::O) == KeyState::Down) * 1.f * deltaTime;
-			val -= (CoreInput::GetKeyState(KeyCode::L) == KeyState::Down) * 1.f * deltaTime;
-
 			Vector4 offset = XMVectorSet(x, y, z, 0.f);
 			offset = offset * rot;
 			//offset = XMVectorSetY(offset, XMVectorGetY(offset) + y);
@@ -444,7 +451,53 @@ int WINAPI WinMain(
 			transform->SetPosition(transform->GetPosition() + offset);
 			transform->SetRotation(rot*verticalRot*horizontalRot);
 
-		} CoreInput::ResetAxes();
+			if(CoreInput::GetKeyState(KeyCode::L) == KeyState::Down)
+			{
+				Material* flagMat = renderer->GetResourceManager()->GetResource<Material>("Flag");
+				if(flagMat)
+				{
+					RenderTexture2D* rt = dynamic_cast<RenderTexture2D*>(flagMat->diffuseMap);
+					if(rt)
+					{
+						renderer->RenderSceneToTexture(rt, cameraEntity->GetComponent<CameraComponent>());
+					}
+				}
+			}
+
+			{
+				static int currSetting = 0;
+
+				if(CoreInput::GetKeyState(KeyCode::Num1) == KeyState::DownFirst || CoreInput::GetKeyState(KeyCode::One) == KeyState::DownFirst)
+					currSetting = 0;
+				if(CoreInput::GetKeyState(KeyCode::Num2) == KeyState::DownFirst || CoreInput::GetKeyState(KeyCode::Two) == KeyState::DownFirst)
+					currSetting = 1;
+				if(CoreInput::GetKeyState(KeyCode::Num3) == KeyState::DownFirst || CoreInput::GetKeyState(KeyCode::Three) == KeyState::DownFirst)
+					currSetting = 2;
+
+				float val = 0;
+				val += ((CoreInput::GetKeyState(KeyCode::Plus) == KeyState::Down) || (CoreInput::GetKeyState(KeyCode::Up) == KeyState::Down)) * deltaTime;
+				val -= ((CoreInput::GetKeyState(KeyCode::Minus) == KeyState::Down) || (CoreInput::GetKeyState(KeyCode::Down) == KeyState::Down)) * deltaTime;
+
+				switch(currSetting)
+				{
+					case 0:
+					{
+						renderer->GetPostProcessingEffect<Tonemapper>()->AddExposure(val*2.f);
+						break;
+					}
+					case 1:
+					{
+						renderer->GetPostProcessingEffect<Tonemapper>()->AddBWFilterStrength(val*2.f);
+						break;
+					}
+					case 2:
+					{
+						renderer->GetPostProcessingEffect<Bloom>()->AddIntensity(val*3.f);
+						break;
+					}
+				}
+			}
+		};
 
 		//directionalLightEntity->GetComponent<TransformComponent>()->SetRotation(Quaternion::FromAngles(40.f, totalTime*15.f, 0.f));
 
@@ -465,7 +518,7 @@ int WINAPI WinMain(
 		}
 
 		renderer->SetActiveModels(sceneManager->GetComponents<MeshComponent>());
-		renderer->UpdateLightBuffers(XMFLOAT3(0.8f, 0.8f, 0.8f), sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
+		renderer->SetActiveLights(XMFLOAT3(0.8f, 0.8f, 0.8f), sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
 		renderer->UpdateSceneBuffer(totalTime);
 		renderer->RenderFrame();
 

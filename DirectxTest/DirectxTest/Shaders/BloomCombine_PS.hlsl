@@ -24,8 +24,7 @@ struct Quad
 float4 main(Quad pIn) : SV_TARGET
 {
     float3 color = sceneColor.Sample(samplerLinear, pIn.uv).rgb;
-    float3 bloom = 0.f;
-    bloom += sceneBloom.Sample(samplerLinear, pIn.uv).rgb * intensity;
+    float3 bloom = sceneBloom.Sample(samplerLinear, pIn.uv).rgb * intensity;
 
     color += bloom;
     return float4(color, 1.f);

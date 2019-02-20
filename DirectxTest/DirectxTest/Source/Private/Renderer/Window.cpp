@@ -152,6 +152,7 @@ bool Window::Update()
 {
 	MSG msg{};
 
+	CoreInput::UpdateInput();
 	// Check to see if any messages are waiting in the queue
 	while(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 	{

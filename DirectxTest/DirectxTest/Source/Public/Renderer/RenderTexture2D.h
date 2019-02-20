@@ -1,14 +1,14 @@
 #pragma once
 
-#include "GraphicsStructures.h"
+#include "Texture2D.h"
 
-struct RenderTexture2D : public Resource
+struct RenderTexture2D : public Texture2D
 {
-	ID3D11Texture2D* texture;
 	ID3D11RenderTargetView* renderTargetView;
 	ID3D11DepthStencilView* depthStencilView;
-	ID3D11ShaderResourceView* resourceView;
 	ID3D11ShaderResourceView* depthView;
+
+	Vector2 dimensions;
 
 	RenderTexture2D();
 	virtual ~RenderTexture2D() override;
