@@ -6,9 +6,6 @@ struct ConstantBuffer;
 
 struct BloomBuffer
 {
-	DirectX::XMFLOAT2 resolution;
-	int currMip;
-	int horizontal;
 	float threshold;
 	float intensity;
 	DirectX::XMFLOAT2 padding;
@@ -26,6 +23,7 @@ public:
 	void AddIntensity(float i);
 private:
 	ConstantBuffer* constantBuffer;
+	ConstantBuffer* blurBuffer;
 	RenderTexture2D* maskA;
 	RenderTexture2D* maskB;
 	PixelShader* maskShader;

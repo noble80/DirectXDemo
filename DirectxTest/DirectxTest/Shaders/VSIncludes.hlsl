@@ -5,9 +5,11 @@
 
 cbuffer ObjectBuffer : register(b0)
 {
-    matrix WorldViewProjection;
+    matrix ViewProjection;
     matrix Normal;
     matrix World;
+    matrix WorldView;
+    matrix Projection;
 };
 
 cbuffer SceneInfoBuffer : register(b5)

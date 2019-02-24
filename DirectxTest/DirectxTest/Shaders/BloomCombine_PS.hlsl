@@ -6,9 +6,6 @@ SamplerState samplerLinear : register(s2);
 
 cbuffer BloomBuffer : register(b0)
 {
-    float2 resolution;
-    int currMip;
-    int horizontal;
     float threshold;
     float intensity;
     float2 padding;

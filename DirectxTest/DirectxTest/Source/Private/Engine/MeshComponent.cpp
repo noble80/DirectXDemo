@@ -17,3 +17,8 @@ DirectX::XMMATRIX MeshComponent::GetTransformMatrix()
 {
 	return m_Transform->GetTransformMatrix();
 }
+
+TransformComponent* MeshComponent::GetTransform()
+{
+	return m_Transform;
+}

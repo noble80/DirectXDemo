@@ -19,6 +19,7 @@ public:
 	inline void AddMesh(Mesh* mesh) { m_Meshes.push_back(mesh); };
 	inline std::vector<Mesh*>& GetMeshes() { return m_Meshes; }
 	DirectX::XMMATRIX GetTransformMatrix();
+	TransformComponent* GetTransform();
 private:
 	std::vector<Mesh*> m_Meshes;
 	TransformComponent* m_Transform;

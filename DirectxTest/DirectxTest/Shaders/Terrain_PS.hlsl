@@ -2,18 +2,12 @@
 
 cbuffer CTerrainBuffer : register(b7)
 {
-    float _TessellationMinDistance;
-    float _TessellationMaxDistance;
-
-    
-	// In 2^X increments
-    float _TessellationMinFactor;
-    float _TessellationMaxFactor;
-    
     float2 _TextureTiling;
     float _TxlSizeU;
     float _TxlSizeV;
     float _PatchSpacing;
+    float _TesselationFactor;
+    float _TesselationProj;
 };
 
 Texture2D diffuseMap : register(t0);
@@ -42,8 +36,8 @@ struct DomainOutput
 float4 main(DomainOutput pIn) : SV_TARGET
 {
     float3 tangentWS = float3(1.0f, 0.f, 0.f);
-    float3 binormalWS = float3(0.f, 0.f, -1.0f);
-    float3 normalWS = cross(tangentWS, binormalWS);
+    float3 binormalWS = float3(0.f, 0.f, 1.0f);
+    float3 normalWS = cross(binormalWS, tangentWS);
 
     float3 viewWS = normalize(pIn.PosWS - _EyePosition);
     float3 normalSample;

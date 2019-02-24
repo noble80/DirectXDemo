@@ -22,6 +22,13 @@ class Renderer;
 struct VertexShader;
 struct PixelShader;
 
+struct BlurBuffer
+{
+	DirectX::XMFLOAT2 resolution;
+	int currMip;
+	int horizontal;
+};
+
 class Effect
 {
 public:
@@ -29,6 +36,11 @@ public:
 	virtual void Initialize(Renderer* renderer) = 0;
 	virtual void Release(Renderer* renderer) = 0;
 
+	void Toggle() { enabled = !enabled; };
+	bool IsEnabled() { return enabled; };
 protected:
+
+	bool enabled = true;
+
 	RenderTexture2D* output;
 };

@@ -2,7 +2,7 @@
 
 cbuffer ObjectBuffer : register(b0)
 {
-    matrix WorldViewProjection;
+    matrix ViewProjection;
     matrix Normal;
     matrix World;
 };
@@ -34,18 +34,12 @@ cbuffer CSurfaceProperties : register(b4)
 
 cbuffer CTerrainBuffer : register(b7)
 {
-    float _TessellationMinDistance;
-    float _TessellationMaxDistance;
-
-    
-	// In 2^X increments
-    float _TessellationMinFactor;
-    float _TessellationMaxFactor;
-    
     float2 _TextureTiling;
     float _TxlSizeU;
     float _TxlSizeV;
     float _PatchSpacing;
+    float _TesselationFactor;
+    float _TesselationProj;
 };
 
 Texture2D HeightMap : register(t7);

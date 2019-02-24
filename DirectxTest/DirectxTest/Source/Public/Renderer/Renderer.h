@@ -90,6 +90,7 @@ public:
 	void DrawDebugShape(GeometryBuffer* shape, const DirectX::XMMATRIX& transform);
 	void DrawMesh(const Mesh* mesh, const DirectX::XMMATRIX& transform);
 
+	float GetTime() const;
 	void UpdateLightBuffers();
 	void UpdateSceneBuffer(float time);
 	void UpdateMaterialSurfaceBuffer(const SurfaceProperties* prop);
@@ -114,6 +115,7 @@ public:
 	void RenderSceneToTexture(RenderTexture2D * output, CameraComponent* camera);
 	void RenderDepthToTexture(ID3D11DepthStencilView* dsv);
 
+	inline CameraComponent* GetActiveCamera() { return m_ActiveCamera; };
 
 	inline ResourceManager* GetResourceManager() { return m_ResourceManager; };
 
@@ -186,7 +188,7 @@ private:
 	void CreateBlendStates();
 	void SetShaderResources(Material* mat);
 	void RenderSkybox(bool flipFaces = true);
-	void RenderTerrain();
+	void RenderTerrain(CameraComponent* camera);
 
 	Microsoft::WRL::ComPtr<IDXGISwapChain1>				m_Swapchain;		// ptr to swap chain
 	Microsoft::WRL::ComPtr<ID3D11Device1>				m_Device;			// ptr to device
@@ -198,6 +200,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_SamplerNearest;
 
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>		m_SceneRasterizerState;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState>		m_PPRasterizerState;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>		m_ShadowsRasterizerState;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>		m_SkyRasterizerState;
 
@@ -207,6 +210,7 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState>		m_DepthStencilState;
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState>		m_DepthStencilSkyState;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilState>		m_DepthStencilTransluscentState;
 
 
 	ConstantBuffer*										m_LightInfoBuffer;
@@ -231,6 +235,7 @@ private:
 	DirectX::XMMATRIX									m_View;
 
 	VertexShader*										FullscreenQuadVS;
+	PixelShader*										DepthMasked;
 
 	std::vector<Effect*>								m_PostProcessChain;
 };

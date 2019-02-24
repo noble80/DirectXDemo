@@ -5,7 +5,7 @@ struct VertexIn
     float3 PosL : POSITION;
     float2 Tex : TEXCOORD0;
 };
-
+    
 struct VertexOut
 {
     float3 PosL : POSITION;

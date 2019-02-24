@@ -150,5 +150,11 @@ inline int IsTransluscent(int flags)
 }
 
 
+inline int IsUnlit(int flags)
+{
+    return ((flags & 512) > 0 ? 1 : 0);
+}
+
+
 
 

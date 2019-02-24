@@ -106,7 +106,7 @@ void ProcessFbxMesh(FbxNode* Node, std::vector<Mesh>& meshes, float scale, FBX_I
 			int n = static_cast<int>(newMesh.indices.size());
 			for(int j = 0; j < n; j++)
 			{
-				vertices2[j].UV.y = 1.f - vertices2[j].UV.y;
+				vertices2[j].UV.y = vertices2[j].UV.y;
 				vertices2[j].Pos = newMesh.vertices[newMesh.indices[j]].Pos;
 				newMesh.indices[j] = n - j - 1;
 			}

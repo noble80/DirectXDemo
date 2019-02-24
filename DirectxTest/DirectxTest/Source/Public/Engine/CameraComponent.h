@@ -15,7 +15,7 @@ public:
 	virtual void Initialize(Entity* owner) override;
 
 	void SetProjectionMatrix(float FOV, Vector2 screenDimensions, float nearZ, float farZ);
-	inline const DirectX::XMMATRIX& GetOrtographicProjectionMatrix() const
+	inline const DirectX::XMMATRIX& GetProjectionMatrix() const
 	{
 		return m_ProjectionMatrix;
 	};

@@ -30,7 +30,6 @@ float3 SampleShadows(float3 worldPos, float linearDepth)
     int currCascade = -1;
 
     float shadowRatio = 1.0f;
-
     for (int i = CASCADES_MAX - 1; i >= 0; --i)
     {
         if (linearDepth <= lightInfo.directionalShadowInfo.cascades[i].cascadeSplit)

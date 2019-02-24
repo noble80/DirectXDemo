@@ -4,7 +4,10 @@
 #include "Renderer/Effects/Effect.h"
 #include "Renderer\Effects\Tonemapper.h"
 #include "Renderer\Effects\Bloom.h"
+#include "Renderer\Effects\Fog.h"
+#include "Renderer\Effects\DOF.h"
 
+#include "Engine\TransformComponent.h"
 #include "Renderer/Window.h"
 #include "Renderer/ShaderUtilities.h"
 #include "Renderer/ShaderBuffers.h"
@@ -49,6 +52,7 @@ Renderer::Renderer()
 	m_ActiveCameraViewport = new D3D11_VIEWPORT{};
 	m_CascadeShadows.cascadeCount = CASCADES_MAX;
 	m_Terrain = nullptr;
+	m_PPRasterizerState = nullptr;
 }
 
 
@@ -164,30 +168,20 @@ bool Renderer::Initialize(Window * window)
 	InitializeSwapChain();
 
 	D3D11_DEPTH_STENCIL_DESC depthStencilDesc{};
-	// Set up the description of the stencil state.
 	depthStencilDesc.DepthEnable = true;
 	depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
 	depthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS;
 
-	depthStencilDesc.StencilEnable = true;
-	depthStencilDesc.StencilReadMask = 0xFF;
-	depthStencilDesc.StencilWriteMask = 0xFF;
-
-	// Stencil operations if pixel is front-facing.
-	depthStencilDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
-	depthStencilDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_INCR;
-	depthStencilDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
-	depthStencilDesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
-
-	// Stencil operations if pixel is back-facing.
-	depthStencilDesc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
-	depthStencilDesc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_DECR;
-	depthStencilDesc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
-	depthStencilDesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
 	m_Device->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilState);
 
+
+	depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
 	depthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
 	m_Device->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilSkyState);
+
+	depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	depthStencilDesc.DepthEnable = false;
+	m_Device->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilTransluscentState);
 
 	// Create the sample state wrap
 	{
@@ -243,9 +237,9 @@ bool Renderer::Initialize(Window * window)
 		if(FAILED(hr))
 			return hr;
 
-		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
+		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
+		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
 		sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
 		hr = m_Device->CreateSamplerState(&sampDesc, &m_SamplerNearest);
 		if(FAILED(hr))
@@ -348,11 +342,11 @@ bool Renderer::InitializeGeometryPass()
 	// Clear the depth buffer to 1.0 (max depth)
 	m_Context->ClearDepthStencilView(m_FinalOutputTexture->depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	m_Context->OMSetRenderTargets(1, &m_SceneTexture->renderTargetView, m_FinalOutputTexture->depthStencilView);
-	m_Context->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
+	m_Context->OMSetDepthStencilState(m_DepthStencilState.Get(), 0);
 	SetFullscreenViewport(1.0f);
 
 	m_View = m_ActiveCamera->GetViewMatrix();
-	m_ViewProjection = m_View * m_ActiveCamera->GetOrtographicProjectionMatrix();
+	m_ViewProjection = m_View * m_ActiveCamera->GetProjectionMatrix();
 
 	m_Context->RSSetState(m_SceneRasterizerState.Get());
 
@@ -372,15 +366,44 @@ void Renderer::RenderFrame(void)
 	RenderShadowMaps(m_ActiveCamera);
 	UpdateConstantBuffer(m_LightInfoBuffer);
 	InitializeGeometryPass();
-	RenderTerrain();
+	CSceneInfoBuffer* buffer = static_cast<CSceneInfoBuffer*>(m_SceneInfoBuffer->cpu);
+	XMStoreFloat3(&buffer->eyePosition, m_ActiveCamera->GetCameraPosition());
+	UpdateConstantBuffer(m_SceneInfoBuffer);
+	RenderTerrain(m_ActiveCamera);
+
+	std::vector<std::pair<Mesh*, TransformComponent*>> transluscent;
+	float blendFactor[] = {0,0, 0, 0};
+	UINT sampleMask = 0xffffffff;
+	m_Context->OMSetBlendState(m_OpaqueBlendState.Get(), blendFactor, sampleMask);
 	for(auto& model : *m_ActiveModels)
 	{
 		for(auto& mesh : model.GetMeshes())
 		{
-			DrawMesh(mesh, model.GetTransformMatrix());
+			if(mesh->material->surfaceParameters.IsTransluscent() == false)
+				DrawMesh(mesh, model.GetTransformMatrix());
+			else
+				transluscent.push_back(std::make_pair(mesh, model.GetTransform()));
 		}
 	}
 	RenderSkybox();
+	m_Context->OMSetBlendState(m_TransluscentBlendState.Get(), blendFactor, sampleMask);
+	m_Context->RSSetState(m_SceneRasterizerState.Get());
+	sort(transluscent.begin(), transluscent.end(),
+		[this](const std::pair<Mesh*, TransformComponent*>& a, const std::pair<Mesh*, TransformComponent*>& b) -> bool
+		{
+			Vector4 va = XMVector3TransformCoord(a.second->GetPosition(), m_ViewProjection);
+			Vector4 vb = XMVector3TransformCoord(b.second->GetPosition(), m_ViewProjection);
+
+			return XMVectorGetZ(va) > XMVectorGetZ(vb);
+		});
+
+	for(auto& pair : transluscent)
+	{
+		DrawMesh(pair.first, pair.second->GetTransformMatrix());
+	}
+
+	m_Context->OMSetDepthStencilState(m_DepthStencilState.Get(), 0);
+
 	RenderPostProcessing();
 	ID3D11ShaderResourceView* null = nullptr;
 	m_Context->PSSetShaderResources(6, 1, &null);
@@ -443,7 +466,7 @@ GeometryBuffer* Renderer::CreateGeometryBuffer(std::string name, std::vector<Ver
 
 VertexShader * Renderer::LoadVertexShader(std::string name)
 {
-	VertexShader* vs = GetResourceManager()->GetResource<VertexShader>("name");
+	VertexShader* vs = GetResourceManager()->GetResource<VertexShader>(name);
 
 	if(vs)
 		return vs;
@@ -539,7 +562,7 @@ VertexShader * Renderer::LoadVertexShaderNoLayout(std::string name)
 
 PixelShader * Renderer::LoadPixelShader(std::string name)
 {
-	PixelShader* ps = GetResourceManager()->GetResource<PixelShader>("name");
+	PixelShader* ps = GetResourceManager()->GetResource<PixelShader>(name);
 
 	if(ps)
 		return ps;
@@ -563,7 +586,7 @@ PixelShader * Renderer::LoadPixelShader(std::string name)
 
 HullShader * Renderer::LoadHullShader(std::string path)
 {
-	HullShader* hs = GetResourceManager()->GetResource<HullShader>("name");
+	HullShader* hs = GetResourceManager()->GetResource<HullShader>(path);
 
 	if(hs)
 		return hs;
@@ -587,7 +610,7 @@ HullShader * Renderer::LoadHullShader(std::string path)
 
 DomainShader * Renderer::LoadDomainShader(std::string path)
 {
-	DomainShader* ds = GetResourceManager()->GetResource<DomainShader>("name");
+	DomainShader* ds = GetResourceManager()->GetResource<DomainShader>(path);
 
 	if(ds)
 		return ds;
@@ -652,7 +675,8 @@ void Renderer::DrawDebugShape(GeometryBuffer * shape, const DirectX::XMMATRIX & 
 
 	CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
 
-	matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
+	matrices->ViewProjection = XMMatrixTranspose(m_ViewProjection);
+	matrices->World = XMMatrixTranspose(transform);
 	UpdateConstantBuffer(m_TransformBuffer);
 	m_Context->IASetVertexBuffers(0, 1, &shape->vertexBuffer.data, &stride, &offset);
 	m_Context->IASetInputLayout(DebugHelpers::DebugMat->vertexShader->inputLayout);
@@ -672,14 +696,16 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 
 	CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
 
-	matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
+	matrices->ViewProjection = XMMatrixTranspose(m_ViewProjection);
 	XMMATRIX normalMatrix = transform;
 	// Remove translation component
 	normalMatrix.r[3].m128_f32[0] = normalMatrix.r[3].m128_f32[1] = normalMatrix.r[3].m128_f32[2] = 0;
 	normalMatrix.r[3].m128_f32[3] = 1;
 	normalMatrix = XMMatrixInverse(nullptr, normalMatrix);
-	matrices->Normal = XMMatrixTranspose(normalMatrix);
+	matrices->Normal = (normalMatrix);
 	matrices->World = XMMatrixTranspose(transform);
+	matrices->WorldView = XMMatrixTranspose(transform*m_View);
+	matrices->Projection = XMMatrixTranspose(m_ActiveCamera->GetProjectionMatrix());
 	UpdateConstantBuffer(m_TransformBuffer);
 	UpdateMaterialSurfaceBuffer(&mesh->material->surfaceParameters);
 
@@ -1005,13 +1031,15 @@ void Renderer::InitializePostProcessing()
 	m_PostProcessChain.clear();
 
 	AddPostProcessingEffect<Bloom>();
+	AddPostProcessingEffect<DOF>();
+	AddPostProcessingEffect<Fog>();
 	AddPostProcessingEffect<Tonemapper>();
 }
 
 void Renderer::RenderPostProcessing()
 {
-	m_Context->RSSetState(m_SceneRasterizerState.Get());
-	m_Context->OMSetDepthStencilState(m_DepthStencilState.Get(), 1);
+	m_Context->RSSetState(m_PPRasterizerState.Get());
+	m_Context->OMSetDepthStencilState(m_DepthStencilState.Get(), 0);
 	m_Context->IASetInputLayout(nullptr);
 	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
@@ -1021,8 +1049,18 @@ void Renderer::RenderPostProcessing()
 
 	for(auto& effect : m_PostProcessChain)
 	{
+		if(effect->IsEnabled() == false)
+			continue;
+
+		RenderTexture2D* prev = current;
 		current = effect->RenderEffect(this, current);
+		current->depthView = prev->depthView;
+		prev->depthView = nullptr;
 	}
+
+	m_SceneTexture->depthView = m_FinalOutputTexture->depthView;
+	m_FinalOutputTexture->depthView = nullptr;
+	//current = GetPostProcessingEffect<Tonemapper>()->RenderEffect(this, current);
 }
 
 void Renderer::RenderShadowMaps(CameraComponent* camera)
@@ -1064,6 +1102,7 @@ void Renderer::RenderShadowMaps(CameraComponent* camera)
 void Renderer::InitializeDefaultShaders()
 {
 	FullscreenQuadVS = LoadVertexShaderNoLayout("FullscreenQuad");
+	DepthMasked = LoadPixelShader("DepthMasked");
 }
 
 void Renderer::InitializeTerrain()
@@ -1155,7 +1194,8 @@ void Renderer::InitializeShadowMaps(float resolution)
 void Renderer::CreateRasterizerStates()
 {
 	CD3D11_RASTERIZER_DESC desc(D3D11_FILL_SOLID, D3D11_CULL_BACK, FALSE, 0, 0.f, 0.f, TRUE, FALSE, FALSE, FALSE);
-
+	m_Device->CreateRasterizerState(&desc, &m_PPRasterizerState);
+	desc.FillMode = D3D11_FILL_SOLID;
 	m_Device->CreateRasterizerState(&desc, &m_SceneRasterizerState);
 	desc.DepthClipEnable = FALSE;
 	//desc.SlopeScaledDepthBias = 1.0;
@@ -1164,6 +1204,7 @@ void Renderer::CreateRasterizerStates()
 	desc.CullMode = D3D11_CULL_FRONT;
 	//desc.FrontCounterClockwise = TRUE;
 	m_Device->CreateRasterizerState(&desc, &m_SkyRasterizerState);
+	desc.FillMode = D3D11_FILL_SOLID;
 
 }
 
@@ -1182,6 +1223,7 @@ void Renderer::CreateBlendStates()
 	desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_DEST_ALPHA;
 	desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
 	desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	desc.RenderTarget[0].RenderTargetWriteMask = 0x0f;
 	m_Device->CreateBlendState(&desc, m_TransluscentBlendState.GetAddressOf());
 }
 
@@ -1210,7 +1252,7 @@ void Renderer::RenderSkybox(bool flipFaces)
 		UINT offset = 0;
 
 		CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
-		matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
+		matrices->ViewProjection = XMMatrixTranspose(m_ViewProjection);
 		matrices->World = XMMatrixTranspose(transform);
 		UpdateConstantBuffer(m_TransformBuffer);
 		UpdateMaterialSurfaceBuffer(&mesh->material->surfaceParameters);
@@ -1227,7 +1269,7 @@ void Renderer::RenderSkybox(bool flipFaces)
 	}
 }
 
-void Renderer::RenderTerrain()
+void Renderer::RenderTerrain(CameraComponent* camera)
 {
 	if(m_Terrain == nullptr)
 		return;
@@ -1236,12 +1278,15 @@ void Renderer::RenderTerrain()
 	UINT offset = 0;
 
 	CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
+	TerrainBuffer* tbuffer = static_cast<TerrainBuffer*>(m_Terrain->constantBuffer->cpu);
 
-	matrices->WorldViewProjection = XMMatrixTranspose(XMMatrixIdentity()*m_ViewProjection);
+	matrices->ViewProjection = XMMatrixTranspose(m_ViewProjection);
 	matrices->World = XMMatrixTranspose(XMMatrixIdentity());
 	UpdateConstantBuffer(m_TransformBuffer);
 	SurfaceProperties prop;
 	UpdateMaterialSurfaceBuffer(&prop);
+	tbuffer->_TesselationProj = camera->GetProjectionMatrix().r[0].m128_f32[0];
+	tbuffer->_TesselationFactor = m_Window->GetDimensions().y / 16.f;
 	UpdateConstantBuffer(m_Terrain->constantBuffer);
 	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST);
 	m_Context->IASetInputLayout(m_Terrain->vs->inputLayout);
@@ -1286,6 +1331,12 @@ void Renderer::RenderTerrain()
 
 	m_Context->DSSetShader(nullptr, nullptr, 0);
 	m_Context->HSSetShader(nullptr, nullptr, 0);
+}
+
+float Renderer::GetTime() const
+{
+	CSceneInfoBuffer* buffer = static_cast<CSceneInfoBuffer*>(m_SceneInfoBuffer->cpu);
+	return buffer->time;
 }
 
 void Renderer::UpdateLightBuffers()
@@ -1396,15 +1447,22 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, CameraComponent* c
 	m_ViewProjection = camera->GetViewProjectionMatrix()*flip;
 	m_Context->RSSetViewports(1, &viewport);
 	m_Context->RSSetState(m_SkyRasterizerState.Get());
-	RenderTerrain();
+
+	CSceneInfoBuffer* buffer = static_cast<CSceneInfoBuffer*>(m_SceneInfoBuffer->cpu);
+	XMStoreFloat3(&buffer->eyePosition, camera->GetCameraPosition());
+	UpdateConstantBuffer(m_SceneInfoBuffer);
+
+	RenderTerrain(camera);
 	for(auto& model : *m_ActiveModels)
 	{
 		for(auto& mesh : model.GetMeshes())
 		{
-			DrawMesh(mesh, model.GetTransformMatrix());
+			if(mesh->material->surfaceParameters.IsTransluscent() == false)
+				DrawMesh(mesh, model.GetTransformMatrix());
 		}
 	}
 	RenderSkybox(false);
+
 	m_Context->OMSetRenderTargets(0, 0, nullptr);
 
 	m_Context->CopyResource(output->texture, back->texture);
@@ -1418,24 +1476,21 @@ void Renderer::RenderDepthToTexture(ID3D11DepthStencilView* dsv)
 	m_Context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	m_Context->RSSetViewports(1, m_DirectionalLightViewport);
 
-	TerrainBuffer* buff = static_cast<TerrainBuffer*>(m_Terrain->constantBuffer->cpu);
-	//TerrainBuffer copy = *buff;
-	//buff->_TessellationMaxFactor = 1.0f;
-	//buff->_TessellationMinFactor = 1.0f;
-	//RenderTerrain();
 	for(auto& model : *m_ActiveModels)
 	{
 		for(auto& mesh : model.GetMeshes())
 		{
 			XMMATRIX transform = model.GetTransformMatrix();
 
-			UINT stride = sizeof(TerrainVertex);
+			UINT stride = sizeof(Vertex);
 			UINT offset = 0;
 
 			CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
-			matrices->WorldViewProjection = XMMatrixTranspose(transform*m_ViewProjection);
-			XMMATRIX normalMatrix = transform;
+			matrices->ViewProjection = XMMatrixTranspose(m_ViewProjection);
 			matrices->World = XMMatrixTranspose(transform);
+			matrices->WorldView = XMMatrixTranspose(transform*m_View);
+			matrices->Projection = XMMatrixTranspose(m_ActiveCamera->GetProjectionMatrix());
+
 			UpdateConstantBuffer(m_TransformBuffer);
 
 			m_Context->IASetVertexBuffers(0, 1, &mesh->geometry->vertexBuffer.data, &stride, &offset);
@@ -1445,6 +1500,10 @@ void Renderer::RenderDepthToTexture(ID3D11DepthStencilView* dsv)
 
 			m_Context->VSSetShader(mesh->material->vertexShader->d3dShader, nullptr, 0);
 			m_Context->PSSetShader(nullptr, nullptr, 0);
+			if(mesh->material->surfaceParameters.IsMasked())
+			{
+				m_Context->PSSetShader(DepthMasked->d3dShader, nullptr, 0);
+			}
 
 			m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
 		}

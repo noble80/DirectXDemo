@@ -25,8 +25,8 @@ OUTPUT_VERTEX main( INPUT_VERTEX vIn )
 {
 	OUTPUT_VERTEX output = (OUTPUT_VERTEX)0;
 	const float4 Pos = float4(vIn.Pos, 1);
-	output.Pos = mul(Pos, WorldViewProjection);
     output.PosWS = mul(Pos, World).xyz;
+    output.Pos = mul(float4(output.PosWS, 1.0f), ViewProjection);
 
 	output.Tex = vIn.Tex;
 

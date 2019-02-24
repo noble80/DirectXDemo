@@ -16,9 +16,10 @@ Tonemapper::Tonemapper()
 RenderTexture2D* Tonemapper::RenderEffect(Renderer * renderer, RenderTexture2D* prev)
 {
 	TonemapperBuffer* buff = static_cast<TonemapperBuffer*>(constantBuffer->cpu);
+	buff->time = renderer->GetTime();
 	renderer->SetPixelShaderConstantBuffer(0, &constantBuffer->gpu.data);
 	renderer->UpdateConstantBuffer(constantBuffer);
-
+	
 	renderer->SetFullscreenViewport(1.0f);
 	renderer->SetRenderTargets(1, &output->renderTargetView, nullptr);
 
@@ -41,6 +42,7 @@ void Tonemapper::Initialize(Renderer * renderer)
 	TonemapperBuffer* buff = static_cast<TonemapperBuffer*>(constantBuffer->cpu);
 	buff->exposure = 1.0f;
 	buff->BWStrength = 0.0f;
+	buff->warp = 0;
 }
 
 void Tonemapper::Release(Renderer* renderer)
@@ -53,6 +55,12 @@ void Tonemapper::SetBWFilterStrength(float bw)
 {
 	TonemapperBuffer* buff = static_cast<TonemapperBuffer*>(constantBuffer->cpu);
 	buff->BWStrength =  std::clamp(bw, 0.f, 1.0f);
+}
+
+void Tonemapper::ToggleWarp()
+{
+	TonemapperBuffer* buff = static_cast<TonemapperBuffer*>(constantBuffer->cpu);
+	buff->warp = !buff->warp;
 }
 
 void Tonemapper::AddBWFilterStrength(float bw)

@@ -48,10 +48,6 @@ void Terrain::Initialize(Renderer* renderer, std::string heightMapName, DirectX:
 	patchQuadCount = (patchVertRows - 1)*(patchVertCols - 1);
 	patchVertCount = patchVertRows * patchVertCols;
 	buff->_PatchSpacing = scale.x/(patchVertRows - 1);
-	buff->_TessellationMaxDistance = 3000.f;
-	buff->_TessellationMinDistance = 100.f;
-	buff->_TessellationMinFactor = 2.f;
-	buff->_TessellationMaxFactor = 32.f;
 	buff->_TxlSizeU = 1.f / texwidth;
 	buff->_TxlSizeV = 1.f / texheight;
 	buff->_TextureTiling.x = 64.f;

@@ -47,7 +47,7 @@ DomainOutput main(
     pos.y = (HeightMap.SampleLevel(sampleTypeClamp, dOut.Tex, 0).r - 0.5f) * 2625.f;
 
     dOut.PosWS = mul(float4(pos, 1.0f), World);
-    dOut.Pos = mul(float4(pos, 1.0f), WorldViewProjection);
+    dOut.Pos = mul(float4(dOut.PosWS, 1.0f), ViewProjection);
     dOut.linearDepth = dOut.Pos.w;
 
     return dOut;

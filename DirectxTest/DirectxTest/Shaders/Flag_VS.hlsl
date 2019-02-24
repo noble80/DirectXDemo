@@ -34,8 +34,8 @@ OUTPUT_VERTEX main(INPUT_VERTEX vIn)
 
     float waveDis = z * (1.f - vIn.Tex.x);
     Pos.z += waveDis;
-    output.Pos = mul(Pos, WorldViewProjection);
     output.PosWS = mul(Pos, World).xyz;
+    output.Pos = mul(float4(output.PosWS, 1.0f), ViewProjection);
 
     output.Tex = vIn.Tex;
 

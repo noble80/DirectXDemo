@@ -12,6 +12,7 @@
 #define SURFACE_FLAG_HAS_REFLECTIONS 0b1000000
 #define SURFACE_FLAG_IS_MASKED 0b10000000
 #define SURFACE_FLAG_IS_TRANSLUSCENT 0b100000000
+#define SURFACE_FLAG_IS_UNLIT 0b1000000000
 
 #define SURFACE_FLAG_HAS_DETAILS_MAP (SURFACE_FLAG_HAS_SPECULAR_MAP | SURFACE_FLAG_HAS_GLOSSINESS_MAP | SURFACE_FLAG_HAS_AO_MAP)
 
@@ -35,7 +36,7 @@ struct SurfaceProperties
 	float padding;
 
 	SurfaceProperties()
-	{		
+	{
 		specularIntensity = 0.1f;
 		glossiness = 0.5f;
 		normalIntensity = 1.5f;
@@ -43,5 +44,15 @@ struct SurfaceProperties
 		diffuseColor = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f);
 		emissiveColor = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
 		textureFlags = 0;
+	}
+
+	inline bool IsTransluscent() const
+	{
+		return ((textureFlags & 256) > 0 ? 1 : 0);
+	}
+
+	inline bool IsMasked() const
+	{
+		return ((textureFlags & 128) > 0 ? 1 : 0);
 	}
 };

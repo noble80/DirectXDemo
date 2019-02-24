@@ -25,6 +25,7 @@ Bloom::Bloom()
 RenderTexture2D* Bloom::RenderEffect(Renderer * renderer, RenderTexture2D* prev)
 {
 	BloomBuffer* buff = static_cast<BloomBuffer*>(constantBuffer->cpu);
+	BlurBuffer* blur = static_cast<BlurBuffer*>(blurBuffer->cpu);
 	renderer->SetPixelShaderConstantBuffer(0, &constantBuffer->gpu.data);
 	renderer->UpdateConstantBuffer(constantBuffer);
 	renderer->SetRenderTargets(1, &maskA->renderTargetView, nullptr);
@@ -39,26 +40,27 @@ RenderTexture2D* Bloom::RenderEffect(Renderer * renderer, RenderTexture2D* prev)
 	renderer->ClearRenderTarget();
 
 	renderer->SetPixelShader(blurShader->d3dShader);
+	renderer->SetPixelShaderConstantBuffer(0, &blurBuffer->gpu.data);
 
 	for(int i = 0; i < 10; i++)
 	{
-		buff->horizontal = 1;
-		renderer->UpdateConstantBuffer(constantBuffer);
+		blur->horizontal = 1;
+		renderer->UpdateConstantBuffer(blurBuffer);
 
 		renderer->ClearRenderTarget();
 		renderer->SetPixelShaderResource(0, &maskA->resourceView);
 		renderer->SetRenderTargets(1, &maskB->renderTargetView, nullptr);
 		renderer->DrawScreenQuad();
 
-		buff->horizontal = 0;
-		renderer->UpdateConstantBuffer(constantBuffer);
+		blur->horizontal = 0;
+		renderer->UpdateConstantBuffer(blurBuffer);
 
 		renderer->ClearRenderTarget();
 		renderer->SetPixelShaderResource(0, &maskB->resourceView);
 		renderer->SetRenderTargets(1, &maskA->renderTargetView, nullptr);
 		renderer->DrawScreenQuad();
 	}
-
+	renderer->SetPixelShaderConstantBuffer(0, &constantBuffer->gpu.data);
 	renderer->SetFullscreenViewport(1.0f);
 	renderer->ClearRenderTarget();
 	renderer->SetPixelShaderResource(0, &prev->resourceView);
@@ -66,7 +68,6 @@ RenderTexture2D* Bloom::RenderEffect(Renderer * renderer, RenderTexture2D* prev)
 	renderer->SetPixelShader(combineShader->d3dShader);
 	renderer->SetRenderTargets(1, &output->renderTargetView, nullptr);
 	renderer->DrawScreenQuad();
-
 	return output;
 }
 
@@ -83,30 +84,30 @@ void Bloom::Initialize(Renderer * renderer)
 	if(!maskShader)
 		maskShader = renderer->LoadPixelShader("BloomMask");
 	if(!blurShader)
-		blurShader = renderer->LoadPixelShader("BloomBlur");
+		blurShader = renderer->LoadPixelShader("Blur");
 	if(!combineShader)
 		combineShader = renderer->LoadPixelShader("BloomCombine");
 
 	if(!constantBuffer)
 		constantBuffer = renderer->CreateConstantBuffer(sizeof(BloomBuffer), "Bloom");
+	if(!blurBuffer)
+		blurBuffer = renderer->CreateConstantBuffer(sizeof(BlurBuffer), "BlurBloom");
 	BloomBuffer* buff = static_cast<BloomBuffer*>(constantBuffer->cpu);
-	buff->currMip = 0;
-	buff->threshold = 1.0f;
+	BlurBuffer* blur = static_cast<BlurBuffer*>(blurBuffer->cpu);
+	buff->threshold = .9f;
 	buff->intensity = .6f;
-	buff->horizontal = 1;
-	buff->resolution.x = desc.Width;
-	buff->resolution.y = desc.Height;
+	blur->horizontal = 1;
+	blur->resolution.x = desc.Width;
+	blur->resolution.y = desc.Height;
 }
 
 void Bloom::Release(Renderer* renderer)
 {
 	renderer->GetResourceManager()->RemoveResource(output);
 	renderer->GetResourceManager()->RemoveResource(constantBuffer);
+	renderer->GetResourceManager()->RemoveResource(blurBuffer);
 	renderer->GetResourceManager()->RemoveResource(maskA);
 	renderer->GetResourceManager()->RemoveResource(maskB);
-	renderer->GetResourceManager()->RemoveResource(maskShader);
-	renderer->GetResourceManager()->RemoveResource(blurShader);
-	renderer->GetResourceManager()->RemoveResource(combineShader);
 
 }
 

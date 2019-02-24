@@ -32,6 +32,8 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
     surface.ambient = _ambientIntensity;
     surface.emissiveColor = _emissiveColor;
 
+    float alpha = 1.f;
+
     if (HasDiffuseTexture(_textureFlags))
     {
         float4 diffuse = diffuseMap.Sample(sampleTypeWrap, pIn.Tex);
@@ -41,10 +43,12 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
             clip(diffuse.a < 0.1f ? -1 : 1);
         }
 
-        surface.diffuseColor *= diffuse;
+        surface.diffuseColor *= diffuse.xyz;
         if (IsTransluscent(_textureFlags))
         {
-            surface.diffuseColor *= diffuse.xyz * diffuse.w;
+            clip(diffuse.a < 0.01f ? -1 : 1);
+            surface.diffuseColor *= diffuse.w;
+            alpha = diffuse.w;
         }
     }
     surface.diffuseColor = saturate(surface.diffuseColor);
@@ -88,6 +92,11 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
 
     float3 positionWS = pIn.PosWS;
     float3 color = surface.emissiveColor; //surface.ambient * lightInfo.ambientColor * surface.diffuseColor +
+
+    if (IsUnlit(_textureFlags))
+    {
+        return (color + surface.diffuseColor, alpha);
+    }
 
     if (HasReflections(_textureFlags))
     {
@@ -161,5 +170,5 @@ float4 main(INPUT_PIXEL pIn) : SV_TARGET
     // Reinhard operator. Supposedly preserves HDR values better
     //color = color / (color + 1.f);
     //color = pow(color, 1.f / 2.2f);
-    return float4(color, 1.f);
+    return float4(color, alpha);
 }

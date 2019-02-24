@@ -15,9 +15,11 @@ struct CSceneInfoBuffer
 
 struct CTransformBuffer
 {
-	DirectX::XMMATRIX WorldViewProjection;
+	DirectX::XMMATRIX ViewProjection;
 	DirectX::XMMATRIX Normal;
 	DirectX::XMMATRIX World;
+	DirectX::XMMATRIX WorldView;
+	DirectX::XMMATRIX Projection;
 };
 
 struct PointLight

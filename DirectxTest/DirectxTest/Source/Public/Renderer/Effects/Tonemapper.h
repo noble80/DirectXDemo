@@ -4,12 +4,12 @@
 
 struct ConstantBuffer;
 
-
 struct TonemapperBuffer
 {
 	float exposure;
 	float BWStrength;
-	float a, b;
+	float time;
+	int warp;
 };
 
 class Tonemapper : public Effect
@@ -21,6 +21,7 @@ public:
 	virtual void Release(Renderer* renderer) override;
 
 	void SetBWFilterStrength(float bw);
+	void ToggleWarp();
 	void AddBWFilterStrength(float bw);
 	void SetExposure(float e);
 	void AddExposure(float e);

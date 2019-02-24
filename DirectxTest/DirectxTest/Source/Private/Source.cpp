@@ -8,11 +8,15 @@
 
 #include "Renderer\Effects\Tonemapper.h"
 #include "Renderer\Effects\Bloom.h"
+#include "Renderer\Effects\DOF.h"
+#include "Renderer\Effects\Fog.h"
 #include <DirectXColors.h>
 
 #include <windowsx.h>
 #include "XTime.h"
 #include <string>
+
+#include <time.h>
 
 #include "Renderer\GraphicsStructures.h"
 #include "Renderer\Material.h"
@@ -54,7 +58,6 @@ int WINAPI WinMain(
 	//Check for memory leaks
 	ENABLE_LEAK_DETECTION();
 
-
 	// this function call will set a breakpoint at the location of a leaked block
 	// set the parameter to the identifier for a leaked block
 	//_CrtSetBreakAlloc(50844);
@@ -70,7 +73,7 @@ int WINAPI WinMain(
 
 	//Load up meshes
 	{
-		std::string meshNames[] = {"GodTree", "Sphere01", "Rock01", "Flag01_1", "Flag01_2"};
+		std::string meshNames[] = {"GodTree", "Sphere01", "Rock01", "RectangularBillboard", "Flag01_1", "Flag01_2"};
 		int n = ARRAYSIZE(meshNames);
 		for(int i = 0; i < n; ++i)
 		{
@@ -98,10 +101,10 @@ int WINAPI WinMain(
 		rockMat->IBLDiffuse = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestDiffuseHDR");
 		rockMat->IBLSpecular = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestSpecularHDR");
 		rockMat->IBLIntegration = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestBrdf");
-		rockMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP | SURFACE_FLAG_HAS_NORMAL_MAP | SURFACE_FLAG_HAS_DETAILS_MAP;
+		rockMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP | SURFACE_FLAG_HAS_DETAILS_MAP | SURFACE_FLAG_HAS_NORMAL_MAP;
 		rockMat->surfaceParameters.roughness = 1.0f;
 		rockMat->surfaceParameters.metallic = 1.0f;
-		rockMat->surfaceParameters.diffuseColor = XMFLOAT3(1.0f, 1.0f, 1.0f);
+		rockMat->surfaceParameters.diffuseColor = XMFLOAT3(2.0f, 2.0f, 2.0f);
 
 		Material* godTreeMat = renderer->LoadMaterial("GodTree");
 		godTreeMat->vertexShader = defaultVS;
@@ -139,10 +142,42 @@ int WINAPI WinMain(
 		skyMat->pixelShader = renderer->LoadPixelShader("Sky");
 		skyMat->diffuseMap = renderer->LoadTexture("IBLTestEnvHDR");
 
+		Material* cloudTransparentMat = renderer->LoadMaterial("cloudTest");
+		cloudTransparentMat->vertexShader = renderer->LoadVertexShader("Billboard");
+		cloudTransparentMat->pixelShader = pbrPS;
+		cloudTransparentMat->diffuseMap = renderer->LoadTexture("Cloud");
+		cloudTransparentMat->IBLDiffuse = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestDiffuseHDR");
+		cloudTransparentMat->IBLSpecular = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestSpecularHDR");
+		cloudTransparentMat->IBLIntegration = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestBrdf");
+		cloudTransparentMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP | SURFACE_FLAG_IS_MASKED;
+		cloudTransparentMat->surfaceParameters.roughness = 0.7f;
+		cloudTransparentMat->surfaceParameters.diffuseColor = XMFLOAT3(1.0f, 1.0f, 1.0f);
+		cloudTransparentMat->surfaceParameters.metallic = 0.0f;
+
+		Material* cloudCutoutMat = renderer->LoadMaterial("cloudTest");
+		cloudCutoutMat->vertexShader = renderer->LoadVertexShader("Billboard");
+		cloudCutoutMat->pixelShader = pbrPS;
+		cloudCutoutMat->diffuseMap = renderer->LoadTexture("Cloud");
+		cloudCutoutMat->IBLDiffuse = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestDiffuseHDR");
+		cloudCutoutMat->IBLSpecular = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestSpecularHDR");
+		cloudCutoutMat->IBLIntegration = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestBrdf");
+		cloudCutoutMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP | SURFACE_FLAG_IS_TRANSLUSCENT | SURFACE_FLAG_IS_UNLIT;
+		cloudCutoutMat->surfaceParameters.roughness = 0.7f;
+		cloudCutoutMat->surfaceParameters.diffuseColor = XMFLOAT3(1.0f, 1.0f, 1.0f);
+		cloudCutoutMat->surfaceParameters.metallic = 0.0f;
+
 		// Create meshes
 		Mesh* skySphere = renderer->GetResourceManager()->CreateResource<Mesh>("SkySphere");
 		skySphere->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Sphere01");
 		skySphere->material = skyMat;
+
+		Mesh* cloud1 = renderer->GetResourceManager()->CreateResource<Mesh>("cloudTransparent");
+		cloud1->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("RectangularBillboard");
+		cloud1->material = cloudTransparentMat;
+
+		Mesh* cloud2 = renderer->GetResourceManager()->CreateResource<Mesh>("cloudCutout");
+		cloud2->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("RectangularBillboard");
+		cloud2->material = cloudCutoutMat;
 
 		Mesh* rock = renderer->GetResourceManager()->CreateResource<Mesh>("Rock01");
 		rock->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Rock01");
@@ -170,20 +205,20 @@ int WINAPI WinMain(
 	Entity* cameraEntity = sceneManager->CreateEntity("Camera01");
 	{
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(cameraEntity);
-		transform->SetRotation(Quaternion::FromAngles(5.f, 0.f, 0.f));
-		transform->SetPosition(XMVectorSet(0.f, 5.f, -25.f, 1.f));
+		transform->SetRotation(Quaternion::FromAngles(15.f, 0.f, 0.f));
+		transform->SetPosition(XMVectorSet(-870.f, 608.86f, -1035.f, 1.f));
 
 		CameraComponent* camera = sceneManager->CreateComponent<CameraComponent>(cameraEntity);
 		Vector2 dimensions = window->GetDimensions();
-		camera->SetProjectionMatrix(90.f, dimensions, 0.01f, 8000.0f);
+		camera->SetProjectionMatrix(90.f, dimensions, 0.1f, 8000.0f);
 	}
 
 	{
 		Entity* entity = sceneManager->CreateEntity("Rock01");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
-		transform->SetRotation(Quaternion::FromAngles(0.f, 45.f, 15.f));
-		transform->SetPosition(XMVectorSet(-6.f, 12.f, 0.2f, 1.f));
-		transform->SetScale(XMVectorSet(0.03f, 0.03f, 0.03f, 1.f));
+		transform->SetRotation(Quaternion::FromAngles(90.f, 0.f, 0.f));
+		transform->SetPosition(XMVectorSet(-862.f, 558.86f, -948.f, 1.f));
+		transform->SetScale(XMVectorSet(0.25f, 0.15f, 0.15f, 1.f));
 
 		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("Rock01"));
@@ -193,21 +228,46 @@ int WINAPI WinMain(
 	{
 		Entity* entity = sceneManager->CreateEntity("GodTree");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
-		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
-		transform->SetPosition(XMVectorSet(2.f, 11.3f, 0.1f, 1.f));
-		transform->SetScale(XMVectorSet(2.f, 2.f, 2.f, 1.f));
+		transform->SetRotation(Quaternion::FromAngles(0.f, 130.f, 0.f));
+		transform->SetPosition(XMVectorSet(-870.f, 561.86f, -950.f, 1.f));
+		transform->SetScale(XMVectorSet(12.f, 12.f, 12.f, 1.f));
 
 		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("GodTree"));
 
 	}
+	std::vector<TransformComponent*> clouds;
+	srand((unsigned int)time(NULL));
+	for(int i = 0; i < 40; ++i)
+	{
+		Entity* entity = sceneManager->CreateEntity("Cloud" + std::to_string(i));
+		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
+		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
+
+		Vector4 center = XMVectorSet(-870.f, 608.86f, -1035.f, 1.f);
+		float distance = rand() / (float)RAND_MAX * 50.f + 8000.f;
+		float scale = distance / 100.f + rand() / (float)RAND_MAX * 10.f;
+		float pitch = MathLibrary::lerp(0.f, -10.f, rand() / (float)RAND_MAX);
+		float yaw = MathLibrary::lerp(0.f, 360.f, rand() / (float)RAND_MAX);
+
+		Vector4 dir = XMVector3Normalize(Quaternion::FromAngles(pitch, yaw, 0.f).GetForwardVector());
+		Vector4 pos = center + dir * distance;
+
+		transform->SetPosition(pos);
+		transform->SetScale(XMVectorSet(scale, scale, scale, 1.f));
+
+		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
+		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("cloudTransparent"));
+
+		clouds.push_back(transform);
+	}
 
 	{
 		Entity* entity = sceneManager->CreateEntity("Flag01");
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(entity);
-		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
-		transform->SetPosition(XMVectorSet(0.f, 10.f, 5.f, 1.f));
-		transform->SetScale(XMVectorSet(2.f, 2.f, 2.f, 1.f));
+		transform->SetRotation(Quaternion::FromAngles(0.f, 90.f, 0.f));
+		transform->SetPosition(XMVectorSet(-800.f, 560.86f, -920.f, 1.f));
+		transform->SetScale(XMVectorSet(16.f, 16.f, 16.f, 1.f));
 
 		MeshComponent* model = sceneManager->CreateComponent<MeshComponent>(entity);
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("FlagPole"));
@@ -218,9 +278,9 @@ int WINAPI WinMain(
 	{
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(directionalLightEntity);
 		DirectionalLightComponent* light = sceneManager->CreateComponent<DirectionalLightComponent>(directionalLightEntity);
-		transform->SetRotation(Quaternion::FromAngles(45.f, 45.f, 0.f));
+		transform->SetRotation(Quaternion::FromAngles(25.f, 90.f, 0.f));
 		light->SetLightColor(XMVectorSet(0.9f, 0.85f, 0.8f, 0.f));
-		light->SetLightIntensity(7.f);
+		light->SetLightIntensity(10.f);
 	}
 
 	// time variables
@@ -287,14 +347,14 @@ int WINAPI WinMain(
 			y = 0;
 			z = 0;
 
-			x -= (CoreInput::GetKeyState(KeyCode::A) == KeyState::Down) * 10.f * deltaTime;
-			x += (CoreInput::GetKeyState(KeyCode::D) == KeyState::Down) * 10.f * deltaTime;
+			x -= (CoreInput::GetKeyState(KeyCode::A) == KeyState::Down) * 100.f * deltaTime;
+			x += (CoreInput::GetKeyState(KeyCode::D) == KeyState::Down) * 100.f * deltaTime;
 
-			y += (CoreInput::GetKeyState(KeyCode::Space) == KeyState::Down) * 10.f * deltaTime;
-			y -= (CoreInput::GetKeyState(KeyCode::Control) == KeyState::Down) * 10.f * deltaTime;
+			y += (CoreInput::GetKeyState(KeyCode::Space) == KeyState::Down) * 100.f * deltaTime;
+			y -= (CoreInput::GetKeyState(KeyCode::Control) == KeyState::Down) * 100.f * deltaTime;
 
-			z += (CoreInput::GetKeyState(KeyCode::W) == KeyState::Down) * 1000.f * deltaTime;
-			z -= (CoreInput::GetKeyState(KeyCode::S) == KeyState::Down) * 1000.f * deltaTime;
+			z += (CoreInput::GetKeyState(KeyCode::W) == KeyState::Down) * 100.f * deltaTime;
+			z -= (CoreInput::GetKeyState(KeyCode::S) == KeyState::Down) * 100.f * deltaTime;
 
 			Vector4 offset = XMVectorSet(x, y, z, 0.f);
 			offset = offset * rot;
@@ -317,39 +377,75 @@ int WINAPI WinMain(
 			}
 
 			{
-				static int currSetting = 0;
+				static int currSetting = 1;
 
 				if(CoreInput::GetKeyState(KeyCode::Num1) == KeyState::DownFirst || CoreInput::GetKeyState(KeyCode::One) == KeyState::DownFirst)
-					currSetting = 0;
-				if(CoreInput::GetKeyState(KeyCode::Num2) == KeyState::DownFirst || CoreInput::GetKeyState(KeyCode::Two) == KeyState::DownFirst)
 					currSetting = 1;
-				if(CoreInput::GetKeyState(KeyCode::Num3) == KeyState::DownFirst || CoreInput::GetKeyState(KeyCode::Three) == KeyState::DownFirst)
+				if(CoreInput::GetKeyState(KeyCode::Num2) == KeyState::DownFirst || CoreInput::GetKeyState(KeyCode::Two) == KeyState::DownFirst)
 					currSetting = 2;
+				if(CoreInput::GetKeyState(KeyCode::Num3) == KeyState::DownFirst || CoreInput::GetKeyState(KeyCode::Three) == KeyState::DownFirst)
+					currSetting = 3;
+				if(CoreInput::GetKeyState(KeyCode::Num4) == KeyState::DownFirst || CoreInput::GetKeyState(KeyCode::Four) == KeyState::DownFirst)
+					currSetting = 4;
+				if(CoreInput::GetKeyState(KeyCode::Num5) == KeyState::DownFirst || CoreInput::GetKeyState(KeyCode::Five) == KeyState::DownFirst)
+					currSetting = 5;
 
 				float val = 0;
 				val += ((CoreInput::GetKeyState(KeyCode::Plus) == KeyState::Down) || (CoreInput::GetKeyState(KeyCode::Up) == KeyState::Down)) * deltaTime;
 				val -= ((CoreInput::GetKeyState(KeyCode::Minus) == KeyState::Down) || (CoreInput::GetKeyState(KeyCode::Down) == KeyState::Down)) * deltaTime;
 
+				if(CoreInput::GetKeyState(KeyCode::Q) == KeyState::DownFirst)
+				{
+					renderer->GetPostProcessingEffect<Fog>()->Toggle();					
+				}
+
+				if(CoreInput::GetKeyState(KeyCode::Z) == KeyState::DownFirst)
+				{
+					renderer->GetPostProcessingEffect<DOF>()->Toggle();
+				}
+
+				if(CoreInput::GetKeyState(KeyCode::X) == KeyState::DownFirst)
+				{
+					renderer->GetPostProcessingEffect<Tonemapper>()->ToggleWarp();
+				}
+
 				switch(currSetting)
 				{
-					case 0:
+					case 1:
 					{
 						renderer->GetPostProcessingEffect<Tonemapper>()->AddExposure(val*2.f);
 						break;
 					}
-					case 1:
+					case 2:
 					{
 						renderer->GetPostProcessingEffect<Tonemapper>()->AddBWFilterStrength(val*2.f);
 						break;
 					}
-					case 2:
+					case 3:
 					{
 						renderer->GetPostProcessingEffect<Bloom>()->AddIntensity(val*3.f);
+						break;
+					}
+					case 4:
+					{
+						renderer->GetPostProcessingEffect<DOF>()->MoveNearPlane(val*1000.f);
+						break;
+					}
+					case 5:
+					{
+						renderer->GetPostProcessingEffect<Fog>()->AddFogAlpha(val*3.f);
 						break;
 					}
 				}
 			}
 		};
+
+		for(auto& t : clouds)
+		{
+			Vector4 pos = t->GetPosition();
+			pos = pos * Quaternion::FromAngles(0.f, deltaTime*0.5f, 0.f);
+			t->SetPosition(pos);
+		}
 
 		//directionalLightEntity->GetComponent<TransformComponent>()->SetRotation(Quaternion::FromAngles(40.f, totalTime*15.f, 0.f));
 

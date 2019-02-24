@@ -20,6 +20,11 @@ struct type_infoComparator
 namespace MathLibrary
 {
 	Vector4 SphericalToCartesian(float phi, float theta);
+	template <typename T>
+	inline T lerp(T v0, T v1, T t)
+	{
+		return fma(t, v1, fma(-t, v0, v0));
+	}
 }
 
 Vector4 operator*(const Vector4& lhs, const Quaternion& rhs);

@@ -11,14 +11,17 @@
     <FxCompile Include="Shaders\Bamboozled_PS.hlsl" />
     <FxCompile Include="Shaders\Tonemapper_PS.hlsl" />
     <FxCompile Include="Shaders\FullscreenQuad_VS.hlsl" />
-    <FxCompile Include="Shaders\BloomBlur_PS.hlsl" />
     <FxCompile Include="Shaders\BloomCombine_PS.hlsl" />
     <FxCompile Include="Shaders\BloomMask_PS.hlsl" />
     <FxCompile Include="Shaders\Terrain_DS.hlsl" />
     <FxCompile Include="Shaders\Terrain_VS.hlsl" />
     <FxCompile Include="Shaders\Terrain_PS.hlsl" />
     <FxCompile Include="Shaders\Terrain_HS.hlsl" />
-    <FxCompile Include="Shaders\Interpolation.hlsl" />
+    <FxCompile Include="Shaders\Billboard_VS.hlsl" />
+    <FxCompile Include="Shaders\Fog_PS.hlsl" />
+    <FxCompile Include="Shaders\Blur_PS.hlsl" />
+    <FxCompile Include="Shaders\DOFCombine_PS.hlsl" />
+    <FxCompile Include="Shaders\DepthMasked_PS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />
@@ -59,6 +62,8 @@
     <ClCompile Include="Source\Private\Renderer\Effects\Bloom.cpp" />
     <ClCompile Include="Source\Private\Renderer\Effects\Tonemapper.cpp" />
     <ClCompile Include="Source\Private\Renderer\Terrain.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Effects\Fog.cpp" />
+    <ClCompile Include="Source\Private\Renderer\Effects\DOF.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Public\Engine\CameraComponent.h" />
@@ -112,5 +117,8 @@
     <ClInclude Include="Source\Public\Renderer\Effects\Tonemapper.h" />
     <ClInclude Include="Source\Public\Renderer\Terrain.h" />
     <ClInclude Include="Shaders\Terrain_Includes.hlsl" />
+    <ClInclude Include="Shaders\Interpolation.hlsl" />
+    <ClInclude Include="Source\Public\Renderer\Effects\Fog.h" />
+    <ClInclude Include="Source\Public\Renderer\Effects\DOF.h" />
   </ItemGroup>
 </Project>

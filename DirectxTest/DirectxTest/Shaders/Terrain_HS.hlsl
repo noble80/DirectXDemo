@@ -24,11 +24,17 @@ struct HullConstantDataOut
 
 #define NUM_CONTROL_POINTS 4
 
-float GetEdgeTessFactor(float3 p)
+float GetPostProjectionSphereExtent(float3 Origin, float Diameter)
 {
-    float dist = distance(p, _EyePosition);    
-    float ratio = saturate((dist - _TessellationMinDistance) / (_TessellationMaxDistance - _TessellationMinDistance));    
-    return pow(2, (lerp(_TessellationMaxFactor, _TessellationMinFactor, ratio)));
+    float4 ClipPos = mul(float4(Origin, 1.0), ViewProjection);
+    return abs((Diameter * _TesselationProj) / ClipPos.w);
+}
+
+float CalculateTessellationFactor(float3 Control0, float3 Control1)
+{
+    float e0 = distance(Control0, Control1);
+    float3 m0 = (Control0 + Control1) / 2;
+    return max(1, _TesselationFactor * GetPostProjectionSphereExtent(m0, e0));
 }
 
 // Patch Constant Function
@@ -37,20 +43,13 @@ HullConstantDataOut CalcHSPatchConstants(
 	uint PatchID : SV_PrimitiveID)
 {
     HullConstantDataOut hCDOut;
-
-	// calculate tesselation factor based on patch edges
-    float3 e0 = 0.5f * (ip[0].PosL + ip[3].PosL);
-    float3 e1 = 0.5f * (ip[0].PosL + ip[1].PosL);
-    float3 e2 = 0.5f * (ip[1].PosL + ip[2].PosL);
-    float3 e3 = 0.5f * (ip[3].PosL + ip[2].PosL);
-    float3 c = 0.25f * (ip[0].PosL + ip[1].PosL + ip[3].PosL + ip[2].PosL);
         
-    hCDOut.EdgeTessFactor[0] = GetEdgeTessFactor(e0);
-    hCDOut.EdgeTessFactor[1] = GetEdgeTessFactor(e1);
-    hCDOut.EdgeTessFactor[2] = GetEdgeTessFactor(e2);
-    hCDOut.EdgeTessFactor[3] = GetEdgeTessFactor(e3);
+    hCDOut.EdgeTessFactor[0] = CalculateTessellationFactor(ip[0].PosL, ip[3].PosL);
+    hCDOut.EdgeTessFactor[1] = CalculateTessellationFactor(ip[0].PosL, ip[1].PosL);
+    hCDOut.EdgeTessFactor[2] = CalculateTessellationFactor(ip[1].PosL, ip[2].PosL);
+    hCDOut.EdgeTessFactor[3] = CalculateTessellationFactor(ip[3].PosL, ip[2].PosL);
         
-    hCDOut.InsideTessFactor[0] = GetEdgeTessFactor(c);
+    hCDOut.InsideTessFactor[0] = 0.25 * (hCDOut.EdgeTessFactor[0] + hCDOut.EdgeTessFactor[1] + hCDOut.EdgeTessFactor[2] + hCDOut.EdgeTessFactor[3]);
     hCDOut.InsideTessFactor[1] = hCDOut.InsideTessFactor[0];
 
     return hCDOut;

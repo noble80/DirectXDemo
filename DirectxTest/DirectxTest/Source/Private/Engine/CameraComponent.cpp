@@ -55,7 +55,7 @@ Vector4 CameraComponent::GetCameraPosition() const
 
 DirectX::XMMATRIX CameraComponent::GetViewProjectionMatrix() const
 {
-	return GetViewMatrix() * GetOrtographicProjectionMatrix();
+	return GetViewMatrix() * GetProjectionMatrix();
 }
 
 DirectX::XMMATRIX CameraComponent::GetViewMatrix() const

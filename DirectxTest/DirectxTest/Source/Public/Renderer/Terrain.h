@@ -21,19 +21,13 @@ struct TerrainVertex
 
 struct TerrainBuffer
 {
-	float _TessellationMinDistance;
-	float _TessellationMaxDistance;
-
-
-	// In 2^X increments
-	float _TessellationMinFactor;
-	float _TessellationMaxFactor;
-
 	DirectX::XMFLOAT2 _TextureTiling;
 	float _TxlSizeU;
 	float _TxlSizeV;
 	float _PatchSpacing;
-	DirectX::XMFLOAT3 padding;
+	float _TesselationFactor;
+	float _TesselationProj;
+	float padding;
 };
 
 
