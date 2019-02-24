@@ -80,6 +80,12 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.1</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.1</ShaderModel>
     </FxCompile>
+    <FxCompile Include="Shaders\DefaultInstanced_VS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\DepthMasked_PS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
@@ -165,6 +171,7 @@
     <ClCompile Include="Source\Private\Engine\ComponentManager.cpp" />
     <ClCompile Include="Source\Private\Engine\Entity.cpp" />
     <ClCompile Include="Source\Private\Engine\DirectionalLightComponent.cpp" />
+    <ClCompile Include="Source\Private\Engine\InstancedMeshComponent.cpp" />
     <ClCompile Include="Source\Private\Engine\Log.cpp" />
     <ClCompile Include="Source\Private\Engine\MeshComponent.cpp" />
     <ClCompile Include="Source\Private\Engine\PointLightComponent.cpp" />
@@ -271,6 +278,7 @@
     <ClInclude Include="Source\Public\Engine\ComponentManager.h" />
     <ClInclude Include="Source\Public\Engine\Entity.h" />
     <ClInclude Include="Source\Public\Engine\DirectionalLightComponent.h" />
+    <ClInclude Include="Source\Public\Engine\InstancedMeshComponent.h" />
     <ClInclude Include="Source\Public\Engine\Log.h" />
     <ClInclude Include="Source\Public\Engine\MeshComponent.h" />
     <ClInclude Include="Source\Public\Engine\PointLightComponent.h" />

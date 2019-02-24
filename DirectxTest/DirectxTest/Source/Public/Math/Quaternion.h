@@ -4,7 +4,7 @@
 
 struct Quaternion
 {
-	Quaternion() {};
+	Quaternion() { __xvec = DirectX::XMQuaternionIdentity(); };
 	Quaternion(DirectX::XMVECTOR vec);
 	inline Quaternion operator*(const Quaternion& other) const
 	{

@@ -21,6 +21,7 @@
 #include "Renderer\ShaderContainers.h"
 
 #include "Engine\MeshComponent.h"
+#include "Engine\InstancedMeshComponent.h"
 #include "Engine/DirectionalLightComponent.h"
 #include "Engine/SpotLightComponent.h"
 #include "Engine/PointLightComponent.h"
@@ -371,36 +372,9 @@ void Renderer::RenderFrame(void)
 	UpdateConstantBuffer(m_SceneInfoBuffer);
 	RenderTerrain(m_ActiveCamera);
 
-	std::vector<std::pair<Mesh*, TransformComponent*>> transluscent;
-	float blendFactor[] = {0,0, 0, 0};
-	UINT sampleMask = 0xffffffff;
-	m_Context->OMSetBlendState(m_OpaqueBlendState.Get(), blendFactor, sampleMask);
-	for(auto& model : *m_ActiveModels)
-	{
-		for(auto& mesh : model.GetMeshes())
-		{
-			if(mesh->material->surfaceParameters.IsTransluscent() == false)
-				DrawMesh(mesh, model.GetTransformMatrix());
-			else
-				transluscent.push_back(std::make_pair(mesh, model.GetTransform()));
-		}
-	}
+	std::vector<std::pair<Mesh*, TransformComponent*>> transluscent = RenderOpaqueGeometry();
 	RenderSkybox();
-	m_Context->OMSetBlendState(m_TransluscentBlendState.Get(), blendFactor, sampleMask);
-	m_Context->RSSetState(m_SceneRasterizerState.Get());
-	sort(transluscent.begin(), transluscent.end(),
-		[this](const std::pair<Mesh*, TransformComponent*>& a, const std::pair<Mesh*, TransformComponent*>& b) -> bool
-		{
-			Vector4 va = XMVector3TransformCoord(a.second->GetPosition(), m_ViewProjection);
-			Vector4 vb = XMVector3TransformCoord(b.second->GetPosition(), m_ViewProjection);
-
-			return XMVectorGetZ(va) > XMVectorGetZ(vb);
-		});
-
-	for(auto& pair : transluscent)
-	{
-		DrawMesh(pair.first, pair.second->GetTransformMatrix());
-	}
+	RenderTransluscentGeometry(transluscent);
 
 	m_Context->OMSetDepthStencilState(m_DepthStencilState.Get(), 0);
 
@@ -505,7 +479,7 @@ VertexShader * Renderer::LoadVertexShader(std::string name)
 
 VertexShader * Renderer::LoadVertexShaderCustomLayout(std::string name, D3D11_INPUT_ELEMENT_DESC * layout, int layoutSize)
 {
-	VertexShader* vs = GetResourceManager()->GetResource<VertexShader>("name");
+	VertexShader* vs = GetResourceManager()->GetResource<VertexShader>(name);
 
 	if(vs)
 		return vs;
@@ -720,6 +694,46 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 	SetShaderResources(mesh->material);
 
 	m_Context->DrawIndexed(mesh->geometry->indexBuffer.size, 0, 0);
+}
+
+void Renderer::DrawMeshInstanced(InstancedMeshComponent* comp)
+{
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+
+	Mesh* mesh = comp->GetMesh();
+	ConstantBuffer* cBuffer = comp->GetConstantBuffer();
+	CInstanceInfo* instanceInfo = static_cast<CInstanceInfo*>(cBuffer->cpu);
+	instanceInfo->ViewProjection = XMMatrixTranspose(m_ViewProjection);
+
+	std::vector<Transform>* matrices = comp->GetTransformMatrices();
+
+	for(int i = 0; i < matrices->size(); ++i)
+	{
+		DirectX::XMMATRIX transform = (*matrices)[i].Matrix();
+		XMMATRIX normalMatrix = transform;
+		// Remove translation component
+		normalMatrix.r[3].m128_f32[0] = normalMatrix.r[3].m128_f32[1] = normalMatrix.r[3].m128_f32[2] = 0;
+		normalMatrix.r[3].m128_f32[3] = 1;
+		normalMatrix = XMMatrixInverse(nullptr, normalMatrix);
+		instanceInfo->Normal[i] = normalMatrix;
+		instanceInfo->World[i] = XMMatrixTranspose(transform); 
+	}
+
+	UpdateConstantBuffer(cBuffer);
+	UpdateMaterialSurfaceBuffer(&mesh->material->surfaceParameters);
+
+	m_Context->IASetVertexBuffers(0, 1, &mesh->geometry->vertexBuffer.data, &stride, &offset);
+	m_Context->IASetIndexBuffer(mesh->geometry->indexBuffer.data, DXGI_FORMAT_R32_UINT, 0);
+	m_Context->IASetInputLayout(mesh->material->vertexShader->inputLayout);
+	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	m_Context->VSSetShader(mesh->material->vertexShader->d3dShader, nullptr, 0);
+	m_Context->VSSetConstantBuffers(0, 1, &cBuffer->gpu.data);
+	m_Context->PSSetShader(mesh->material->pixelShader->d3dShader, nullptr, 0);
+	SetShaderResources(mesh->material);
+
+	m_Context->DrawIndexedInstanced(mesh->geometry->indexBuffer.size, matrices->size(), 0, 0, 0);
 }
 
 void Renderer::SetDirectionalLight(DirectionalLightComponent * light)
@@ -1019,6 +1033,51 @@ bool Renderer::CreateIntermediateSceneTexture(ID3D11Texture2D* backBuffer, ID3D1
 	}
 
 	return false;
+}
+
+std::vector<std::pair<Mesh*, TransformComponent*>> Renderer::RenderOpaqueGeometry()
+{
+	std::vector<std::pair<Mesh*, TransformComponent*>> transluscent;
+
+	m_Context->OMSetBlendState(m_OpaqueBlendState.Get(), nullptr, 0xffffffff);
+
+	for(auto& comp : *m_ActiveInstances)
+	{
+		DrawMeshInstanced(&comp);
+	}
+
+	for(auto& model : *m_ActiveModels)
+	{
+		for(auto& mesh : model.GetMeshes())
+		{
+			if(mesh->material->surfaceParameters.IsTransluscent() == false)
+				DrawMesh(mesh, model.GetTransformMatrix());
+			else
+				transluscent.push_back(std::make_pair(mesh, model.GetTransform()));
+		}
+	}
+	return transluscent;
+}
+
+void Renderer::RenderTransluscentGeometry(std::vector<std::pair<Mesh*, TransformComponent*>> transluscent)
+{
+	float blendFactor[] = {0,0, 0, 0};
+	UINT sampleMask = 0xffffffff;
+	m_Context->OMSetBlendState(m_TransluscentBlendState.Get(), blendFactor, sampleMask);
+	m_Context->RSSetState(m_SceneRasterizerState.Get());
+	sort(transluscent.begin(), transluscent.end(),
+		[this](const std::pair<Mesh*, TransformComponent*>& a, const std::pair<Mesh*, TransformComponent*>& b) -> bool
+		{
+			Vector4 va = XMVector3TransformCoord(a.second->GetPosition(), m_ViewProjection);
+			Vector4 vb = XMVector3TransformCoord(b.second->GetPosition(), m_ViewProjection);
+
+			return XMVectorGetZ(va) > XMVectorGetZ(vb);
+		});
+
+	for(auto& pair : transluscent)
+	{
+		DrawMesh(pair.first, pair.second->GetTransformMatrix());
+	}
 }
 
 void Renderer::InitializePostProcessing()
@@ -1451,17 +1510,11 @@ void Renderer::RenderSceneToTexture(RenderTexture2D * output, CameraComponent* c
 	CSceneInfoBuffer* buffer = static_cast<CSceneInfoBuffer*>(m_SceneInfoBuffer->cpu);
 	XMStoreFloat3(&buffer->eyePosition, camera->GetCameraPosition());
 	UpdateConstantBuffer(m_SceneInfoBuffer);
-
 	RenderTerrain(camera);
-	for(auto& model : *m_ActiveModels)
-	{
-		for(auto& mesh : model.GetMeshes())
-		{
-			if(mesh->material->surfaceParameters.IsTransluscent() == false)
-				DrawMesh(mesh, model.GetTransformMatrix());
-		}
-	}
+	std::vector<std::pair<Mesh*, TransformComponent*>> transluscent = RenderOpaqueGeometry();
 	RenderSkybox(false);
+	m_Context->RSSetState(m_SkyRasterizerState.Get());
+	RenderTransluscentGeometry(transluscent);
 
 	m_Context->OMSetRenderTargets(0, 0, nullptr);
 
@@ -1476,6 +1529,48 @@ void Renderer::RenderDepthToTexture(ID3D11DepthStencilView* dsv)
 	m_Context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	m_Context->RSSetViewports(1, m_DirectionalLightViewport);
 
+	for(auto& comp : *m_ActiveInstances)
+	{
+		UINT stride = sizeof(Vertex);
+		UINT offset = 0;
+
+		Mesh* mesh = comp.GetMesh();
+		ConstantBuffer* cBuffer = comp.GetConstantBuffer();
+		CInstanceInfo* instanceInfo = static_cast<CInstanceInfo*>(cBuffer->cpu);
+		instanceInfo->ViewProjection = XMMatrixTranspose(m_ViewProjection);
+
+		std::vector<Transform>* matrices = comp.GetTransformMatrices();
+
+		for(int i = 0; i < matrices->size(); ++i)
+		{
+			DirectX::XMMATRIX transform = (*matrices)[i].Matrix();
+			XMMATRIX normalMatrix = transform;
+			// Remove translation component
+			normalMatrix.r[3].m128_f32[0] = normalMatrix.r[3].m128_f32[1] = normalMatrix.r[3].m128_f32[2] = 0;
+			normalMatrix.r[3].m128_f32[3] = 1;
+			normalMatrix = XMMatrixInverse(nullptr, normalMatrix);
+			instanceInfo->Normal[i] = normalMatrix;
+			instanceInfo->World[i] = XMMatrixTranspose(transform);
+		}
+		UpdateConstantBuffer(cBuffer);
+
+		m_Context->IASetVertexBuffers(0, 1, &mesh->geometry->vertexBuffer.data, &stride, &offset);
+		m_Context->IASetIndexBuffer(mesh->geometry->indexBuffer.data, DXGI_FORMAT_R32_UINT, 0);
+		m_Context->IASetInputLayout(mesh->material->vertexShader->inputLayout);
+		m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		m_Context->VSSetShader(mesh->material->vertexShader->d3dShader, nullptr, 0);
+		m_Context->VSSetConstantBuffers(0, 1, &cBuffer->gpu.data);
+		m_Context->PSSetShader(nullptr, nullptr, 0);
+		if(mesh->material->surfaceParameters.IsMasked())
+		{
+			m_Context->PSSetShaderResources(0, 1, &mesh->material->diffuseMap->resourceView);
+			m_Context->PSSetShader(DepthMasked->d3dShader, nullptr, 0);
+		}
+
+		m_Context->DrawIndexedInstanced(mesh->geometry->indexBuffer.size, matrices->size(), 0, 0, 0);
+	}
+
 	for(auto& model : *m_ActiveModels)
 	{
 		for(auto& mesh : model.GetMeshes())
@@ -1488,8 +1583,6 @@ void Renderer::RenderDepthToTexture(ID3D11DepthStencilView* dsv)
 			CTransformBuffer* matrices = static_cast<CTransformBuffer*>(m_TransformBuffer->cpu);
 			matrices->ViewProjection = XMMatrixTranspose(m_ViewProjection);
 			matrices->World = XMMatrixTranspose(transform);
-			matrices->WorldView = XMMatrixTranspose(transform*m_View);
-			matrices->Projection = XMMatrixTranspose(m_ActiveCamera->GetProjectionMatrix());
 
 			UpdateConstantBuffer(m_TransformBuffer);
 
@@ -1499,9 +1592,11 @@ void Renderer::RenderDepthToTexture(ID3D11DepthStencilView* dsv)
 			m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 			m_Context->VSSetShader(mesh->material->vertexShader->d3dShader, nullptr, 0);
+			m_Context->VSSetConstantBuffers(0, 1, &m_TransformBuffer->gpu.data);
 			m_Context->PSSetShader(nullptr, nullptr, 0);
 			if(mesh->material->surfaceParameters.IsMasked())
 			{
+				m_Context->PSSetShaderResources(0, 1, &mesh->material->diffuseMap->resourceView);
 				m_Context->PSSetShader(DepthMasked->d3dShader, nullptr, 0);
 			}
 

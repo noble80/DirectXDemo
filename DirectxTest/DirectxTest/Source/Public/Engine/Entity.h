@@ -30,6 +30,8 @@ public:
 	}
 
 
+	std::string GetName() const { return m_Name; };
+
 	inline void AddComponent(Component* comp)
 	{
 		m_Components.insert(std::make_pair(&typeid(*comp), comp));

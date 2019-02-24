@@ -19,7 +19,7 @@ DirectionalLightComponent::DirectionalLightComponent()
 	SetShadowResolution(2048);
 	SetShadowNearClip(0.01f);
 	SetShadowBias(0.004f);
-	SetNormalOffset(0.4f);
+	SetNormalOffset(0.2f);
 }
 
 DirectionalLightComponent::~DirectionalLightComponent()

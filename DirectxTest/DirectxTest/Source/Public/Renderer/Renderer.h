@@ -39,6 +39,8 @@ class PointLightComponent;
 class SpotLightComponent;
 class CameraComponent;
 class MeshComponent;
+class InstancedMeshComponent;
+class TransformComponent;
 
 struct Vertex;
 struct D3D11_BUFFER_DESC;
@@ -89,6 +91,7 @@ public:
 
 	void DrawDebugShape(GeometryBuffer* shape, const DirectX::XMMATRIX& transform);
 	void DrawMesh(const Mesh* mesh, const DirectX::XMMATRIX& transform);
+	void DrawMeshInstanced(InstancedMeshComponent* comp);
 
 	float GetTime() const;
 	void UpdateLightBuffers();
@@ -119,7 +122,12 @@ public:
 
 	inline ResourceManager* GetResourceManager() { return m_ResourceManager; };
 
-	inline void SetActiveModels(std::vector<MeshComponent>* models) { m_ActiveModels = models; };
+	inline void SetActiveModels(std::vector<MeshComponent>* models, std::vector<InstancedMeshComponent>* instanced) 
+	{
+		m_ActiveModels = models; 
+		m_ActiveInstances = instanced;
+	}
+;
 	void SetDirectionalLight(DirectionalLightComponent* light);
 
 	bool FullScreenModeSwitched();
@@ -174,6 +182,9 @@ private:
 
 	CascadeShadows m_CascadeShadows;
 
+	std::vector<std::pair<Mesh*, TransformComponent*>> RenderOpaqueGeometry();
+	void RenderTransluscentGeometry(std::vector<std::pair<Mesh*, TransformComponent*>> transluscent);
+
 	void InitializePostProcessing();
 	void RenderPostProcessing();
 	void RenderShadowMaps(CameraComponent* camera);
@@ -220,6 +231,7 @@ private:
 
 	CameraComponent*									m_ActiveCamera;
 	std::vector<MeshComponent>*							m_ActiveModels;
+	std::vector<InstancedMeshComponent>*				m_ActiveInstances;
 	RenderTexture2D*									m_FinalOutputTexture;
 	RenderTexture2D*									m_SceneTexture;
 

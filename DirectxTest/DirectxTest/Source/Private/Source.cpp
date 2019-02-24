@@ -32,6 +32,7 @@
 #include "Engine\SpotLightComponent.h"
 #include "Engine\PointLightComponent.h"
 #include "Engine\MeshComponent.h"
+#include "Engine\InstancedMeshComponent.h"
 #include "Engine\CameraComponent.h"
 
 #include "DebugMemory.h"
@@ -73,7 +74,7 @@ int WINAPI WinMain(
 
 	//Load up meshes
 	{
-		std::string meshNames[] = {"GodTree", "Sphere01", "Rock01", "RectangularBillboard", "Flag01_1", "Flag01_2"};
+		std::string meshNames[] = {"Tree01","GodTree", "Sphere01", "Rock01", "RectangularBillboard", "Flag01_1", "Flag01_2"};
 		int n = ARRAYSIZE(meshNames);
 		for(int i = 0; i < n; ++i)
 		{
@@ -83,6 +84,20 @@ int WINAPI WinMain(
 			renderer->CreateGeometryBuffer(mesh.name, &mesh.vertices, mesh.indices);
 		}
 		//Create materials
+		D3D11_INPUT_ELEMENT_DESC vLayout[] =
+		{
+				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+				{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+				{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+				{ "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+
+				//{ "INSTANCERAND", 0, DXGI_FORMAT_R32_FLOAT,   1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 }
+		};
+
+		VertexShader* instancedVS = renderer->LoadVertexShaderCustomLayout("DefaultInstanced", vLayout, 5);
+
+
 		VertexShader* defaultVS = renderer->LoadVertexShader("Default");
 		PixelShader* defaultPS = renderer->LoadPixelShader("BlinnPhong");
 		PixelShader* pbrPS = renderer->LoadPixelShader("PBR");
@@ -119,6 +134,20 @@ int WINAPI WinMain(
 		godTreeMat->surfaceParameters.roughness = 1.0f;
 		godTreeMat->surfaceParameters.diffuseColor = XMFLOAT3(1.0f, 1.0f, 1.0f);
 		godTreeMat->surfaceParameters.metallic = 1.0f;
+
+		Material* treeMat = renderer->LoadMaterial("Tree01");
+		treeMat->vertexShader = instancedVS;
+		treeMat->pixelShader = pbrPS;
+		treeMat->diffuseMap = renderer->LoadTexture("TreeCM");
+		treeMat->normalMap = renderer->LoadTexture("TreeNM");
+		treeMat->detailsMap = renderer->LoadTexture("TreeDM");
+		treeMat->IBLDiffuse = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestDiffuseHDR");
+		treeMat->IBLSpecular = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestSpecularHDR");
+		treeMat->IBLIntegration = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestBrdf");
+		treeMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP | SURFACE_FLAG_HAS_NORMAL_MAP | SURFACE_FLAG_HAS_DETAILS_MAP | SURFACE_FLAG_IS_MASKED;
+		treeMat->surfaceParameters.roughness = 1.0f;
+		treeMat->surfaceParameters.diffuseColor = XMFLOAT3(1.0f, 1.0f, 1.0f);
+		treeMat->surfaceParameters.metallic = 1.0f;
 
 		Material* waveMat = renderer->LoadMaterial("Wave");
 		waveMat->vertexShader = defaultVS;
@@ -179,6 +208,10 @@ int WINAPI WinMain(
 		cloud2->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("RectangularBillboard");
 		cloud2->material = cloudCutoutMat;
 
+		Mesh* Tree01 = renderer->GetResourceManager()->CreateResource<Mesh>("Tree01");
+		Tree01->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Tree01");
+		Tree01->material = treeMat;
+
 		Mesh* rock = renderer->GetResourceManager()->CreateResource<Mesh>("Rock01");
 		rock->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Rock01");
 		rock->material = rockMat;
@@ -236,6 +269,24 @@ int WINAPI WinMain(
 		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("GodTree"));
 
 	}
+
+	{
+		Entity* entity = sceneManager->CreateEntity("TreeInstanced");
+		InstancedMeshComponent* instanced = sceneManager->CreateComponent<InstancedMeshComponent>(entity);
+		instanced->CreateInstanceBuffer(renderer);
+		Mesh* mesh = renderer->GetResourceManager()->GetResource<Mesh>("Tree01");
+		instanced->SetMesh(mesh);
+		for(int i = 0; i < 3; ++i)
+			for(int j = 0; j < 3; ++j)
+			{
+				Transform t;
+				t.pos = XMVectorSet(-1200.f + i * 120.f, 565.f, -800.f + j * 120.f, 1.f);
+				t.rot = Quaternion::FromAngles(0.f, 130.f, 0.f);
+				t.scale = XMVectorSet(2.f, 2.f, 2.f, 2.f);
+				instanced->AddInstance(t);
+			}
+	}
+
 	std::vector<TransformComponent*> clouds;
 	srand((unsigned int)time(NULL));
 	for(int i = 0; i < 40; ++i)
@@ -396,7 +447,7 @@ int WINAPI WinMain(
 
 				if(CoreInput::GetKeyState(KeyCode::Q) == KeyState::DownFirst)
 				{
-					renderer->GetPostProcessingEffect<Fog>()->Toggle();					
+					renderer->GetPostProcessingEffect<Fog>()->Toggle();
 				}
 
 				if(CoreInput::GetKeyState(KeyCode::Z) == KeyState::DownFirst)
@@ -449,7 +500,7 @@ int WINAPI WinMain(
 
 		//directionalLightEntity->GetComponent<TransformComponent>()->SetRotation(Quaternion::FromAngles(40.f, totalTime*15.f, 0.f));
 
-		renderer->SetActiveModels(sceneManager->GetComponents<MeshComponent>());
+		renderer->SetActiveModels(sceneManager->GetComponents<MeshComponent>(), sceneManager->GetComponents<InstancedMeshComponent>());
 		renderer->SetActiveLights(XMFLOAT3(0.5f, 0.5f, 0.5f), sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
 		renderer->UpdateSceneBuffer(totalTime);
 		renderer->RenderFrame();

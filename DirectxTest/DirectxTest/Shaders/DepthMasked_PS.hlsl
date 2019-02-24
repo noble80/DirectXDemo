@@ -14,7 +14,7 @@ struct INPUT_PIXEL
 
 float4 main(INPUT_PIXEL pIn) : SV_TARGET
 {
-    float a = diffuseMap.Sample(linearWrap, pIn.Tex).r;
+    float a = diffuseMap.Sample(linearWrap, pIn.Tex).a;
     clip(a < 0.1f ? -1 : 1);
     return 1.f;
 }

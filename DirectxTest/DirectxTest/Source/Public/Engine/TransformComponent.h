@@ -9,38 +9,36 @@ public:
 
 	inline void SetPosition(const Vector4& pos)
 	{
-		m_Position = pos;
+		transform.pos = pos;
 	};
 
 	inline Vector4 GetPosition() const
 	{
-		return m_Position;
+		return transform.pos;
 	};
 
 	inline void SetScale(const Vector4& scale)
 	{
-		m_Scale = scale;
+		transform.scale = scale;
 	};
 
 	inline Vector4 GetScale() const
 	{
-		return m_Scale;
+		return transform.scale;
 	};
 
 	inline void SetRotation(const Quaternion& rot)
 	{
-		m_Rotation = rot;
+		transform.rot = rot;
 	};
 
 	inline const Quaternion& GetRotation() const
 	{
-		return m_Rotation;
+		return transform.rot;
 	};
 
 	DirectX::XMMATRIX GetTransformMatrix();
 private:
-	Vector4 m_Position;
-	Vector4 m_Scale;
-	Quaternion m_Rotation;
+	Transform transform;
 };
 

@@ -17,6 +17,6 @@ TransformComponent::~TransformComponent()
 
 XMMATRIX TransformComponent::GetTransformMatrix()
 {
-	XMMATRIX output = XMMatrixScalingFromVector(m_Scale) * m_Rotation.ToRotationMatrix() * XMMatrixTranslationFromVector(m_Position);
+	XMMATRIX output = transform.Matrix();
 	return output;
 }

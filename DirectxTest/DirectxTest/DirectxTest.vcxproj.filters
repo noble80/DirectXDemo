@@ -22,6 +22,7 @@
     <FxCompile Include="Shaders\Blur_PS.hlsl" />
     <FxCompile Include="Shaders\DOFCombine_PS.hlsl" />
     <FxCompile Include="Shaders\DepthMasked_PS.hlsl" />
+    <FxCompile Include="Shaders\DefaultInstanced_VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />
@@ -64,6 +65,7 @@
     <ClCompile Include="Source\Private\Renderer\Terrain.cpp" />
     <ClCompile Include="Source\Private\Renderer\Effects\Fog.cpp" />
     <ClCompile Include="Source\Private\Renderer\Effects\DOF.cpp" />
+    <ClCompile Include="Source\Private\Engine\InstancedMeshComponent.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Public\Engine\CameraComponent.h" />
@@ -120,5 +122,6 @@
     <ClInclude Include="Shaders\Interpolation.hlsl" />
     <ClInclude Include="Source\Public\Renderer\Effects\Fog.h" />
     <ClInclude Include="Source\Public\Renderer\Effects\DOF.h" />
+    <ClInclude Include="Source\Public\Engine\InstancedMeshComponent.h" />
   </ItemGroup>
 </Project>

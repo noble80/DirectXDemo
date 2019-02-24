@@ -9,6 +9,15 @@
 #include <algorithm>
 #include <math.h>
 
+struct Transform
+{
+	Vector4 pos;
+	Vector4 scale;
+	Quaternion rot;
+
+	DirectX::XMMATRIX Matrix() const { return DirectX::XMMatrixScalingFromVector(scale) * rot.ToRotationMatrix() * DirectX::XMMatrixTranslationFromVector(pos); }
+};
+
 struct type_infoComparator
 {
 	bool operator ()(const std::type_info* lhs, const std::type_info* rhs) const
