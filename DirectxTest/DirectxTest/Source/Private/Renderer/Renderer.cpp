@@ -293,6 +293,29 @@ bool Renderer::Initialize(Window * window)
 	InitializeDefaultShaders();
 	InitializeTerrain();
 
+	{
+		ComPtr<ID3D11Debug> d3dDebug;
+		hr = m_Device.As(&d3dDebug);
+		if(SUCCEEDED(hr))
+		{
+			ComPtr<ID3D11InfoQueue> d3dInfoQueue;
+			hr = d3dDebug.As(&d3dInfoQueue);
+			if(SUCCEEDED(hr))
+			{
+				D3D11_MESSAGE_ID hide[] =
+				{
+					D3D11_MESSAGE_ID_SETPRIVATEDATA_CHANGINGPARAMS,
+					// TODO: Add more message IDs here as needed 
+				};
+				D3D11_INFO_QUEUE_FILTER filter;
+				memset(&filter, 0, sizeof(filter));
+				filter.DenyList.NumIDs = _countof(hide);
+				filter.DenyList.pIDList = hide;
+				d3dInfoQueue->AddStorageFilterEntries(&filter);
+			}
+		}
+	}
+
 	m_Window->m_Renderer = this;
 
 	return true;
@@ -351,6 +374,9 @@ bool Renderer::InitializeGeometryPass()
 
 	m_Context->RSSetState(m_SceneRasterizerState.Get());
 
+	ID3D11ShaderResourceView* null[8] = {nullptr};
+	m_Context->VSSetShaderResources(0, 8, null);
+
 	return true;
 }
 
@@ -376,11 +402,48 @@ void Renderer::RenderFrame(void)
 	RenderSkybox();
 	RenderTransluscentGeometry(transluscent);
 
+
 	m_Context->OMSetDepthStencilState(m_DepthStencilState.Get(), 0);
 
-	RenderPostProcessing();
+	if(bMinimap)
+	{
+		m_View = m_SecondaryCamera->GetViewMatrix();
+		m_ViewProjection = m_View * m_SecondaryCamera->GetProjectionMatrix();
+		m_Context->RSSetState(m_SceneRasterizerState.Get());
+		ID3D11ShaderResourceView* null[8] = {nullptr};
+		m_Context->VSSetShaderResources(0, 8, null);
+
+		CameraComponent* temp = m_ActiveCamera;
+		m_ActiveCamera = m_SecondaryCamera;
+		D3D11_VIEWPORT vp;
+		Vector2 dimensions = m_Window->GetDimensions();
+		vp.Width = dimensions.x*0.25f;
+		vp.Height = dimensions.y*0.25f;
+		vp.MaxDepth = 1.0f;
+		vp.MinDepth = 0.0f;
+		vp.TopLeftX = 3*dimensions.x / 4.f;
+		vp.TopLeftY = 3*dimensions.y / 4.f;
+		m_Context->RSSetViewports(1, &vp);
+		m_Context->ClearDepthStencilView(m_FinalOutputTexture->depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+		UpdateConstantBuffer(m_LightInfoBuffer);
+		RenderTerrain(m_SecondaryCamera);
+		RenderOpaqueGeometry();
+		RenderSkybox();
+		m_ActiveCamera = temp;
+
+		std::vector<Effect*> tempPP;
+		std::vector<Effect*> tempPP2;
+		tempPP2 = m_PostProcessChain;
+		tempPP.push_back(m_PostProcessChain[m_PostProcessChain.size() - 1]);
+		m_PostProcessChain = tempPP;
+		RenderPostProcessing();
+		m_PostProcessChain = tempPP2;
+	}
+	else
+		RenderPostProcessing();
 	ID3D11ShaderResourceView* null = nullptr;
 	m_Context->PSSetShaderResources(6, 1, &null);
+
 }
 
 bool Renderer::PresentFrame()
@@ -698,6 +761,8 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 
 void Renderer::DrawMeshInstanced(InstancedMeshComponent* comp)
 {
+
+
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 
@@ -711,13 +776,7 @@ void Renderer::DrawMeshInstanced(InstancedMeshComponent* comp)
 	for(int i = 0; i < matrices->size(); ++i)
 	{
 		DirectX::XMMATRIX transform = (*matrices)[i].Matrix();
-		XMMATRIX normalMatrix = transform;
-		// Remove translation component
-		normalMatrix.r[3].m128_f32[0] = normalMatrix.r[3].m128_f32[1] = normalMatrix.r[3].m128_f32[2] = 0;
-		normalMatrix.r[3].m128_f32[3] = 1;
-		normalMatrix = XMMatrixInverse(nullptr, normalMatrix);
-		instanceInfo->Normal[i] = normalMatrix;
-		instanceInfo->World[i] = XMMatrixTranspose(transform); 
+		instanceInfo->World[i] = XMMatrixTranspose(transform*comp->GetTransform().Matrix());
 	}
 
 	UpdateConstantBuffer(cBuffer);
@@ -728,7 +787,26 @@ void Renderer::DrawMeshInstanced(InstancedMeshComponent* comp)
 	m_Context->IASetInputLayout(mesh->material->vertexShader->inputLayout);
 	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+	//Compute shader stuff
+	{
+		UINT initCounts = 0;
+		ID3D11ShaderResourceView* null[]{nullptr};
+		m_Context->VSSetShaderResources(0, 1, null);
+		m_Context->CSSetUnorderedAccessViews(0, 1, m_UAV.GetAddressOf(), &initCounts);
+		m_Context->CSSetShader(m_ComputeShader.Get(), nullptr, 0);
+		m_Context->CSSetShaderResources(7, 1, &m_Terrain->heightmap->resourceView);
+		m_Context->CSSetConstantBuffers(0, 1, &cBuffer->gpu.data);
+		m_Context->CSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
+
+		m_Context->Dispatch(500, 1, 1);
+
+		ID3D11UnorderedAccessView* pNullUAV = NULL;
+
+		m_Context->CSSetUnorderedAccessViews(0, 1, &pNullUAV, &initCounts);
+	}
+
 	m_Context->VSSetShader(mesh->material->vertexShader->d3dShader, nullptr, 0);
+	m_Context->VSSetShaderResources(0, 1, m_StructuredView.GetAddressOf());
 	m_Context->VSSetConstantBuffers(0, 1, &cBuffer->gpu.data);
 	m_Context->PSSetShader(mesh->material->pixelShader->d3dShader, nullptr, 0);
 	SetShaderResources(mesh->material);
@@ -778,6 +856,16 @@ bool Renderer::ResizeSwapChain()
 	{
 		if(m_Window)
 			m_ActiveCamera->UpdateAspectRatio(m_Window->GetDimensions());
+	}
+
+	if(m_ActiveCamera)
+	{
+		Vector2 dimensions = m_Window->GetDimensions();
+		dimensions.x /= 4.f;
+		dimensions.y /= 4.f;
+
+		if(m_Window)
+			m_SecondaryCamera->UpdateAspectRatio(dimensions);
 	}
 
 	return true;
@@ -1037,6 +1125,8 @@ bool Renderer::CreateIntermediateSceneTexture(ID3D11Texture2D* backBuffer, ID3D1
 
 std::vector<std::pair<Mesh*, TransformComponent*>> Renderer::RenderOpaqueGeometry()
 {
+
+
 	std::vector<std::pair<Mesh*, TransformComponent*>> transluscent;
 
 	m_Context->OMSetBlendState(m_OpaqueBlendState.Get(), nullptr, 0xffffffff);
@@ -1162,6 +1252,42 @@ void Renderer::InitializeDefaultShaders()
 {
 	FullscreenQuadVS = LoadVertexShaderNoLayout("FullscreenQuad");
 	DepthMasked = LoadPixelShader("DepthMasked");
+
+
+
+	D3D11_BUFFER_DESC sbDesc;
+	sbDesc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+	sbDesc.CPUAccessFlags = 0;
+	sbDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	sbDesc.StructureByteStride = sizeof(BufferStruct);
+	sbDesc.ByteWidth = sizeof(BufferStruct) * 500 * 1;
+	sbDesc.Usage = D3D11_USAGE_DEFAULT;
+	HRESULT hr = m_Device->CreateBuffer(&sbDesc, nullptr, &m_StructuredBuffer);
+
+	D3D11_UNORDERED_ACCESS_VIEW_DESC sbUAVDesc;
+	sbUAVDesc.Buffer.FirstElement = 0;
+	sbUAVDesc.Buffer.Flags = 0;
+	sbUAVDesc.Buffer.NumElements = 500 * 1;
+	sbUAVDesc.Format = DXGI_FORMAT_UNKNOWN;
+	sbUAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+	hr = m_Device->CreateUnorderedAccessView(m_StructuredBuffer.Get(), &sbUAVDesc, m_UAV.GetAddressOf());
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC sbSRVDesc;
+	sbSRVDesc.Buffer.ElementOffset = 0;
+	sbSRVDesc.Buffer.ElementWidth = sizeof(BufferStruct);
+	sbSRVDesc.Buffer.FirstElement = 0;
+	sbSRVDesc.Buffer.NumElements = 500 * 1;
+	sbSRVDesc.Format = DXGI_FORMAT_UNKNOWN;
+	sbSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+	hr = m_Device->CreateShaderResourceView(m_StructuredBuffer.Get(), &sbSRVDesc, &m_StructuredView);
+
+	std::vector<std::byte> bytes;
+	std::string fullPath = "../Shaders/TerrainAlign_CS.cso";
+
+	if(ShaderUtilities::LoadShaderFromFile(fullPath, bytes))
+	{
+		hr = m_Device->CreateComputeShader(bytes.data(), bytes.size(), nullptr, &m_ComputeShader);
+	}
 }
 
 void Renderer::InitializeTerrain()
@@ -1293,6 +1419,9 @@ void Renderer::SetShaderResources(Material * mat)
 		if(mat->textures[i])
 			m_Context->PSSetShaderResources(i, 1, &mat->textures[i]->resourceView);
 	}
+
+	if(mat->glowMap)
+		m_Context->PSSetShaderResources(7, 1, &mat->glowMap->resourceView);
 }
 
 void Renderer::RenderSkybox(bool flipFaces)
@@ -1531,6 +1660,7 @@ void Renderer::RenderDepthToTexture(ID3D11DepthStencilView* dsv)
 
 	for(auto& comp : *m_ActiveInstances)
 	{
+
 		UINT stride = sizeof(Vertex);
 		UINT offset = 0;
 
@@ -1544,13 +1674,7 @@ void Renderer::RenderDepthToTexture(ID3D11DepthStencilView* dsv)
 		for(int i = 0; i < matrices->size(); ++i)
 		{
 			DirectX::XMMATRIX transform = (*matrices)[i].Matrix();
-			XMMATRIX normalMatrix = transform;
-			// Remove translation component
-			normalMatrix.r[3].m128_f32[0] = normalMatrix.r[3].m128_f32[1] = normalMatrix.r[3].m128_f32[2] = 0;
-			normalMatrix.r[3].m128_f32[3] = 1;
-			normalMatrix = XMMatrixInverse(nullptr, normalMatrix);
-			instanceInfo->Normal[i] = normalMatrix;
-			instanceInfo->World[i] = XMMatrixTranspose(transform);
+			instanceInfo->World[i] = XMMatrixTranspose(transform*comp.GetTransform().Matrix());
 		}
 		UpdateConstantBuffer(cBuffer);
 
@@ -1560,6 +1684,25 @@ void Renderer::RenderDepthToTexture(ID3D11DepthStencilView* dsv)
 		m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		m_Context->VSSetShader(mesh->material->vertexShader->d3dShader, nullptr, 0);
+
+		//Compute shader stuff
+		{
+			UINT initCounts = 0;
+			ID3D11ShaderResourceView* null[]{nullptr};
+			m_Context->VSSetShaderResources(0, 1, null);
+			m_Context->CSSetUnorderedAccessViews(0, 1, m_UAV.GetAddressOf(), &initCounts);
+			m_Context->CSSetShader(m_ComputeShader.Get(), nullptr, 0);
+			m_Context->CSSetShaderResources(7, 1, &m_Terrain->heightmap->resourceView);
+			m_Context->CSSetConstantBuffers(0, 1, &cBuffer->gpu.data);
+			m_Context->CSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
+
+			m_Context->Dispatch(500, 1, 1);
+
+			ID3D11UnorderedAccessView* pNullUAV = NULL;
+
+			m_Context->CSSetUnorderedAccessViews(0, 1, &pNullUAV, &initCounts);
+		}
+		m_Context->VSSetShaderResources(0, 1, m_StructuredView.GetAddressOf());
 		m_Context->VSSetConstantBuffers(0, 1, &cBuffer->gpu.data);
 		m_Context->PSSetShader(nullptr, nullptr, 0);
 		if(mesh->material->surfaceParameters.IsMasked())

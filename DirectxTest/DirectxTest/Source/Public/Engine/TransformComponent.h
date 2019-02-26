@@ -38,6 +38,10 @@ public:
 	};
 
 	DirectX::XMMATRIX GetTransformMatrix();
+	inline Transform GetTransform()
+	{
+		return transform;
+	};
 private:
 	Transform transform;
 };

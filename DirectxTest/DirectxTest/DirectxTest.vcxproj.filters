@@ -23,6 +23,7 @@
     <FxCompile Include="Shaders\DOFCombine_PS.hlsl" />
     <FxCompile Include="Shaders\DepthMasked_PS.hlsl" />
     <FxCompile Include="Shaders\DefaultInstanced_VS.hlsl" />
+    <FxCompile Include="Shaders\TerrainAlign_CS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Private\Engine\CameraComponent.cpp" />

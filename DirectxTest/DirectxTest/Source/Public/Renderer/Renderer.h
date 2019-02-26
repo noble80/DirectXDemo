@@ -7,8 +7,10 @@ struct ID3D11DeviceContext1;
 struct ID3D11RenderTargetView;
 struct ID3D11DepthStencilView;
 struct ID3D11Buffer;
+struct ID3D11UnorderedAccessView;
 struct ID3D11VertexShader;
 struct ID3D11PixelShader;
+struct ID3D11ComputeShader;
 struct D3D11_VIEWPORT;
 struct ID3D11InputLayout;
 struct ID3D11SamplerState;
@@ -114,6 +116,7 @@ public:
 	ID3D11Buffer* CreateD3DBuffer(D3D11_BUFFER_DESC* desc, D3D11_SUBRESOURCE_DATA* InitData);
 
 	inline void SetActiveCamera(CameraComponent* camera) { m_ActiveCamera = camera; };
+	inline void SetSecondaryCamera(CameraComponent* camera) { m_SecondaryCamera = camera; };
 
 	void RenderSceneToTexture(RenderTexture2D * output, CameraComponent* camera);
 	void RenderDepthToTexture(ID3D11DepthStencilView* dsv);
@@ -171,7 +174,7 @@ public:
 
 	void SetActiveLights(DirectX::XMFLOAT3 ambientColor, std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights);
 
-
+	bool bMinimap = false;
 
 private:
 	bool m_Paused = true;
@@ -223,6 +226,16 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState>		m_DepthStencilSkyState;
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState>		m_DepthStencilTransluscentState;
 
+	struct BufferStruct
+	{
+		Vector4 pos;
+	};
+
+	Microsoft::WRL::ComPtr<ID3D11Buffer>					m_StructuredBuffer;
+	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView>		m_UAV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>		m_StructuredView;
+	Microsoft::WRL::ComPtr<ID3D11ComputeShader>				m_ComputeShader;
+
 
 	ConstantBuffer*										m_LightInfoBuffer;
 	ConstantBuffer*										m_SceneInfoBuffer;
@@ -230,6 +243,7 @@ private:
 	ConstantBuffer*										m_MaterialSurfaceBuffer;
 
 	CameraComponent*									m_ActiveCamera;
+	CameraComponent*									m_SecondaryCamera;
 	std::vector<MeshComponent>*							m_ActiveModels;
 	std::vector<InstancedMeshComponent>*				m_ActiveInstances;
 	RenderTexture2D*									m_FinalOutputTexture;

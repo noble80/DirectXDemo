@@ -12,6 +12,7 @@ struct Quaternion
 	};
 	static Quaternion FromAngles(float pitch, float yaw, float roll);
 	static Quaternion FromAxisAngle(Vector4 axis, float angle);
+	static Quaternion LookAt(Vector4 forward, Vector4 up);
 	DirectX::XMMATRIX ToRotationMatrix() const;
 
 	Vector4 GetUpVector() const;

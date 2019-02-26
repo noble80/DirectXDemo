@@ -17,7 +17,7 @@ SceneManager::SceneManager()
 	m_ComponentManager.CreateComponentContainer<DirectionalLightComponent>(4);
 	m_ComponentManager.CreateComponentContainer<PointLightComponent>(10);
 	m_ComponentManager.CreateComponentContainer<SpotLightComponent>(10);
-	m_ComponentManager.CreateComponentContainer<CameraComponent>(1);
+	m_ComponentManager.CreateComponentContainer<CameraComponent>(2);
 }
 
 

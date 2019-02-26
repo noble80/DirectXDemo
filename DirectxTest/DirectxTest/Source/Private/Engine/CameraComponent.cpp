@@ -42,6 +42,18 @@ void CameraComponent::UpdateFOV(float FOV)
 	RebuildProjectionMatrix();
 }
 
+void CameraComponent::UpdateNearZ(float nearZ)
+{
+	m_NearZ = nearZ;
+	RebuildProjectionMatrix();
+}
+
+void CameraComponent::UpdateFarZ(float farZ)
+{
+	m_FarZ = farZ;
+	RebuildProjectionMatrix();
+}
+
 void CameraComponent::UpdateAspectRatio(Vector2 dimensions)
 {
 	m_AspectRatio = dimensions.x / dimensions.y;

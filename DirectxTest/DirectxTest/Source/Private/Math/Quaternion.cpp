@@ -20,6 +20,23 @@ Quaternion Quaternion::FromAxisAngle(Vector4 axis, float angle)
 	return Quaternion(XMQuaternionRotationAxis(axis, XMConvertToRadians(angle)));
 }
 
+Quaternion Quaternion::LookAt(Vector4 forward, Vector4 up)
+{
+	MathLibrary::Orthonormalize(forward, up);
+
+	Vector4 right = XMVector3Cross(up, forward);
+	Quaternion output;
+	output.__xvec.m128_f32[3] = sqrtf(1.0f + right.m128_f32[0] + up.m128_f32[1] + forward.m128_f32[2]) * 0.5f;
+
+	float reciprocal = 1.0f / (4.0f * output.__xvec.m128_f32[3]);
+
+	output.__xvec.m128_f32[0] = (up.m128_f32[2] - forward.m128_f32[1]) * reciprocal;
+	output.__xvec.m128_f32[1] = (forward.m128_f32[0] - right.m128_f32[2]) * reciprocal;
+	output.__xvec.m128_f32[2] = (right.m128_f32[1] - up.m128_f32[0]) * reciprocal;
+
+	return output;
+}
+
 DirectX::XMMATRIX Quaternion::ToRotationMatrix() const
 {
 	return XMMatrixRotationQuaternion(__xvec);

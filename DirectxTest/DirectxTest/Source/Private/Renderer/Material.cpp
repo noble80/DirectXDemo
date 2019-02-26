@@ -9,6 +9,7 @@ Material::Material()
 	reflectionMap = nullptr;
 	IBLSpecular = nullptr;
 	IBLIntegration = nullptr;
+	glowMap = nullptr;
 }
 
 Material::~Material()

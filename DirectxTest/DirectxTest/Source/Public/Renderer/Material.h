@@ -29,6 +29,7 @@ public:
 
 		Texture2D* textures[6];
 	};
+	Texture2D* glowMap;
 
 	Material();
 	virtual ~Material() override;

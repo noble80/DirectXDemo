@@ -81,7 +81,7 @@ void DirectionalLightComponent::GetLightSpaceMatrices(CameraComponent* camera, C
 	std::vector<float> cascadeSplits;
 	cascadeSplits.resize(cascadeCount);
 
-	float lambda = 0.98f; //Blend factor between logarithmic and linear distributions
+	float lambda = 0.97f; //Blend factor between logarithmic and linear distributions
 
 	float nearZ = camera->GetNearZ();
 	float farZ = camera->GetFarZ();

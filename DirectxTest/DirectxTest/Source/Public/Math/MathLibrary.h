@@ -34,6 +34,10 @@ namespace MathLibrary
 	{
 		return fma(t, v1, fma(-t, v0, v0));
 	}
+
+	float RandomFloatInRange(float min, float max);
+	Vector4 RandomPointInCircle(Vector4 center, float radius);
+	void Orthonormalize(Vector4 normal, Vector4& tangent);
 }
 
 Vector4 operator*(const Vector4& lhs, const Quaternion& rhs);

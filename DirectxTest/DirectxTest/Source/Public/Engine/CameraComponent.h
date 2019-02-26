@@ -21,6 +21,8 @@ public:
 	};
 	void RebuildProjectionMatrix();
 	void UpdateFOV(float FOV);
+	void UpdateNearZ(float nearZ);
+	void UpdateFarZ(float farZ);
 	void UpdateAspectRatio(Vector2 dimensions);
 
 	inline float GetFOV() const { return m_FOV; };
