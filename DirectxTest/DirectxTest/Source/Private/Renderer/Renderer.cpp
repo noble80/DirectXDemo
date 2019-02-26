@@ -1255,7 +1255,7 @@ void Renderer::InitializeDefaultShaders()
 
 
 
-	D3D11_BUFFER_DESC sbDesc;
+	CD3D11_BUFFER_DESC sbDesc;
 	sbDesc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
 	sbDesc.CPUAccessFlags = 0;
 	sbDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
@@ -1696,7 +1696,7 @@ void Renderer::RenderDepthToTexture(ID3D11DepthStencilView* dsv)
 			m_Context->CSSetConstantBuffers(0, 1, &cBuffer->gpu.data);
 			m_Context->CSSetSamplers(2, 1, m_SamplerLinearClamp.GetAddressOf());
 
-			m_Context->Dispatch(500, 1, 1);
+			m_Context->Dispatch(1, 1, 1);
 
 			ID3D11UnorderedAccessView* pNullUAV = NULL;
 
