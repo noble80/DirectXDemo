@@ -43,4 +43,5 @@ Notes:
 	-I couldn't fix dynamic tesselation jittering at certain distances, but Larri said it doesn't really matter for the points
 	-Layered transparency is showcased in the cloud billboards. At times they are layered at more than 10 on top of each other without breaking.
 	-Reflective cubemap is on the Flag's pole. Look closer to see reflection better.
+	-Terrain alignment uses compute shader. It reads from the heightmap and the current instance's location
 	
