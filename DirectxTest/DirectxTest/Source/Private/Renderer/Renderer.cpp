@@ -81,6 +81,8 @@ bool Renderer::Initialize(Window * window)
 	#else
 		UINT flags = 0;
 	#endif
+		flags = 0;
+
 		D3D_FEATURE_LEVEL	FeatureLevels[] =
 		{
 			D3D_FEATURE_LEVEL_11_1,
@@ -761,7 +763,8 @@ void Renderer::DrawMesh(const Mesh* mesh, const XMMATRIX& transform)
 
 void Renderer::DrawMeshInstanced(InstancedMeshComponent* comp)
 {
-
+	if(bOtherScene)
+		return;
 
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
@@ -1459,7 +1462,7 @@ void Renderer::RenderSkybox(bool flipFaces)
 
 void Renderer::RenderTerrain(CameraComponent* camera)
 {
-	if(m_Terrain == nullptr)
+	if(m_Terrain == nullptr || bOtherScene)
 		return;
 
 	UINT stride = sizeof(TerrainVertex);

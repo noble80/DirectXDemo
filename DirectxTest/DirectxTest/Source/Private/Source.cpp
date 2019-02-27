@@ -67,15 +67,17 @@ int WINAPI WinMain(
 	Log::DebugConsole::Initialize();
 
 	Window* window = new Window;
-	SceneManager* sceneManager = new SceneManager;
+	SceneManager* sceneManagerA = new SceneManager;
+	SceneManager* sceneManagerB = new SceneManager;
+	SceneManager* sceneManager = sceneManagerA;
 	Renderer* renderer = new Renderer;
 
 	window->Initialize(Vector2(WIDTH, HEIGHT), 0, L"DirectXTest");
 	renderer->Initialize(window);
-
+	Material* skyMat;
 	//Load up meshes
 	{
-		std::string meshNames[] = {"Tree02", "Tree01","GodTree", "Sphere01", "Rock01", "RectangularBillboard", "Flag01_1", "Flag01_2"};
+		std::string meshNames[] = {"SciFiScene", "Tree02", "Tree01","GodTree", "Sphere01", "Rock01", "RectangularBillboard", "Flag01_1", "Flag01_2"};
 		int n = ARRAYSIZE(meshNames);
 		for(int i = 0; i < n; ++i)
 		{
@@ -202,10 +204,11 @@ int WINAPI WinMain(
 			flagMat->diffuseMap = renderer->LoadRenderTexture2D(&desc, "FlagCapture");
 		}
 
-		Material* skyMat = renderer->LoadMaterial("Sky");
+		skyMat = renderer->LoadMaterial("Sky");
 		skyMat->vertexShader = renderer->LoadVertexShader("Sky");
 		skyMat->pixelShader = renderer->LoadPixelShader("Sky");
 		skyMat->diffuseMap = renderer->LoadTexture("IBLTestEnvHDR");
+		renderer->LoadTexture("Space");
 
 		Material* cloudTransparentMat = renderer->LoadMaterial("cloudTest");
 		cloudTransparentMat->vertexShader = renderer->LoadVertexShader("Billboard");
@@ -267,6 +270,24 @@ int WINAPI WinMain(
 		Mesh* flagTop = renderer->GetResourceManager()->CreateResource<Mesh>("FlagTop");
 		flagTop->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("Flag01_1");
 		flagTop->material = flagMat;
+
+		Material* scifiMat = renderer->LoadMaterial("sciFi");
+		scifiMat->vertexShader = instancedVS;
+		scifiMat->pixelShader = pbrPS;
+		scifiMat->diffuseMap = renderer->LoadTexture("Scifi_Diffuse");
+		scifiMat->normalMap = renderer->LoadTexture("Scifi_Normals");
+		scifiMat->detailsMap = renderer->LoadTexture("Scifi_Details");
+		scifiMat->IBLDiffuse = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestDiffuseHDR");
+		scifiMat->IBLSpecular = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestSpecularHDR");
+		scifiMat->IBLIntegration = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestBrdf");
+		scifiMat->surfaceParameters.textureFlags = SURFACE_FLAG_HAS_DIFFUSE_MAP | SURFACE_FLAG_HAS_NORMAL_MAP | SURFACE_FLAG_HAS_DETAILS_MAP;
+		scifiMat->surfaceParameters.roughness = 1.0f;
+		scifiMat->surfaceParameters.diffuseColor = XMFLOAT3(1.0f, 1.0f, 1.0f);
+		scifiMat->surfaceParameters.metallic = 1.0f;
+
+		Mesh* sciFi = renderer->GetResourceManager()->CreateResource<Mesh>("sciFi");
+		sciFi->geometry = renderer->GetResourceManager()->GetResource<GeometryBuffer>("SciFiScene");
+		sciFi->material = scifiMat;
 	}
 
 	// Entity creation
@@ -393,12 +414,14 @@ int WINAPI WinMain(
 	}
 
 	Entity* directionalLightEntity = sceneManager->CreateEntity("DirectionalLight01");
+	DirectionalLightComponent* dl;
 	{
 		TransformComponent* transform = sceneManager->CreateComponent<TransformComponent>(directionalLightEntity);
 		DirectionalLightComponent* light = sceneManager->CreateComponent<DirectionalLightComponent>(directionalLightEntity);
 		transform->SetRotation(Quaternion::FromAngles(25.f, 90.f, 0.f));
 		light->SetLightColor(XMVectorSet(0.9f, 0.85f, 0.8f, 1.f));
 		light->SetLightIntensity(10.f);
+		dl = light;
 	}
 
 	Entity* spotLightEntity = sceneManager->CreateEntity("SpotLight01");
@@ -418,6 +441,44 @@ int WINAPI WinMain(
 	renderer->SetActiveCamera(cameraEntity->GetComponent<CameraComponent>());
 	renderer->SetSecondaryCamera(secondaryCamera->GetComponent<CameraComponent>());
 	renderer->SetDirectionalLight(directionalLightEntity->GetComponent<DirectionalLightComponent>());
+
+#pragma region Scene2
+
+	Entity* sciFi = sceneManager->CreateEntity("Scifi");
+	{
+		TransformComponent* transform = sceneManagerB->CreateComponent<TransformComponent>(sciFi);
+		transform->SetRotation(Quaternion::FromAngles(0.f, 0.f, 0.f));
+		transform->SetPosition(XMVectorSet(-0.f, 0.f, -0.f, 1.f));
+		transform->SetScale(XMVectorSet(1.f, 1.f, 1.f, 1.f));
+
+		MeshComponent* model = sceneManagerB->CreateComponent<MeshComponent>(sciFi);
+		model->AddMesh(renderer->GetResourceManager()->GetResource<Mesh>("sciFi"));
+
+	}
+
+	{
+		Entity* entity = sceneManager->CreateEntity("Light01");
+
+		TransformComponent* transform = sceneManagerB->CreateComponent<TransformComponent>(entity);
+		transform->SetPosition(XMVectorSet(0.f, 60.f, 120.f, 1.f));
+
+		PointLightComponent* pc =  sceneManagerB->CreateComponent<PointLightComponent>(entity);
+		pc->SetRadius(100.f);
+		pc->SetLightIntensity(2.f);
+	}
+
+	{
+		Entity* entity = sceneManager->CreateEntity("Light02");
+
+		TransformComponent* transform = sceneManagerB->CreateComponent<TransformComponent>(entity);
+		transform->SetPosition(XMVectorSet(-50.f, 50.f, -20.f, 1.f));
+
+		PointLightComponent* pc = sceneManagerB->CreateComponent<PointLightComponent>(entity);
+		pc->SetRadius(70.f);
+		pc->SetLightIntensity(4.f);
+		pc->SetLightColor(XMVectorSet(1.0f, 0.7f, 0.5f, 1.0f));
+	}
+#pragma endregion Scene2
 
 	// Debug stuff
 #ifdef _DEBUG
@@ -649,6 +710,31 @@ int WINAPI WinMain(
 					renderer->bMinimap = !renderer->bMinimap;
 				}
 
+				if(CoreInput::GetKeyState(KeyCode::T) == KeyState::DownFirst)
+				{
+					renderer->bOtherScene = !renderer->bOtherScene;
+
+					if(renderer->bOtherScene)
+					{
+						renderer->GetPostProcessingEffect<Fog>()->Toggle();
+						cameraEntity->GetComponent<TransformComponent>()->SetPosition(XMVectorSet(0.f, 30.f, 150.f, 1.f));
+						cameraEntity->GetComponent<TransformComponent>()->SetRotation(Quaternion::FromAngles(0.f, 180.f, 0.f));
+						sceneManager = sceneManagerB;
+						dl->GetOwner()->GetComponent<TransformComponent>()->SetRotation(Quaternion::FromAngles(10.f, -5.0f, 0.f));
+						renderer->GetPostProcessingEffect<Bloom>()->SetIntensity(0.5f);
+						skyMat->diffuseMap = renderer->GetResourceManager()->GetResource<Texture2D>("Space");
+					}
+					else
+					{
+						renderer->GetPostProcessingEffect<Fog>()->Toggle();
+						cameraEntity->GetComponent<TransformComponent>()->SetPosition(XMVectorSet(-870.f, 608.86f, -1035.f, 1.f));
+						sceneManager = sceneManagerA;
+						dl->GetOwner()->GetComponent<TransformComponent>()->SetRotation(Quaternion::FromAngles(25.f, 90.0f, 0.f));
+						renderer->GetPostProcessingEffect<Bloom>()->SetIntensity(1.f);
+						skyMat->diffuseMap = renderer->GetResourceManager()->GetResource<Texture2D>("IBLTestEnvHDR");
+					}
+				}
+
 				switch(currSetting)
 				{
 					case 1:
@@ -734,7 +820,7 @@ int WINAPI WinMain(
 		}
 
 		renderer->SetActiveModels(sceneManager->GetComponents<MeshComponent>(), sceneManager->GetComponents<InstancedMeshComponent>());
-		renderer->SetActiveLights(XMFLOAT3(0.5f, 0.5f, 0.5f), sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
+		renderer->SetActiveLights(renderer->bOtherScene ? XMFLOAT3(0.05f, 0.05f, 0.05f) : XMFLOAT3(0.5f, 0.5f, 0.5f), sceneManager->GetComponents<PointLightComponent>(), sceneManager->GetComponents<SpotLightComponent>());
 		renderer->UpdateSceneBuffer(totalTime);
 		renderer->RenderFrame();
 
@@ -753,7 +839,8 @@ int WINAPI WinMain(
 
 	delete window;
 	delete renderer;
-	delete sceneManager;
+	delete sceneManagerA;
+	delete sceneManagerB;
 
 	return 0;
 }

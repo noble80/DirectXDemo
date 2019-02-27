@@ -28,6 +28,7 @@ Settings:
 	-B = Toggle emissive and subsurface scattering effects on Flesh Tree  
 	-N = Toggle Look at Flesh Tree  
 	-M = Activate Minimap  
+	-T = Switch scenes
 	
 	
 -Hold  

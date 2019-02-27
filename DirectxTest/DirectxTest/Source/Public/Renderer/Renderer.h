@@ -175,7 +175,7 @@ public:
 	void SetActiveLights(DirectX::XMFLOAT3 ambientColor, std::vector<PointLightComponent>* pointLights, std::vector<SpotLightComponent>* spotLights);
 
 	bool bMinimap = false;
-
+	bool bOtherScene = false;
 private:
 	bool m_Paused = true;
 
