@@ -1,5 +1,13 @@
 # Jose-Graphics-Learnings-of-America-for-Make-Benefit-Glorious-Nation-of-Bolivia
 
+Screenshots
+
+![pbr1](/pbr.jpg?raw=true "PBR")
+![pbr2](/pbr1.jpg?raw=true "PBR")
+![pbr3](/pbr2.jpg?raw=true "PBR")
+![pbr4](/pbr3.jpg?raw=true "PBR")
+
+
 CONTROLS
 
 -Move with WASD  
