@@ -2,10 +2,10 @@
 
 Screenshots
 
-![pbr1](/pbr.jpg?raw=true "PBR")
-![pbr2](/pbr1.jpg?raw=true "PBR")
-![pbr3](/pbr2.jpg?raw=true "PBR")
-![pbr4](/pbr3.jpg?raw=true "PBR")
+![pbr1](/pbr/pbr.jpg?raw=true "PBR")
+![pbr2](/pbr/pbr1.jpg?raw=true "PBR")
+![pbr3](/pbr/pbr2.jpg?raw=true "PBR")
+![pbr4](/pbr/pbr3.jpg?raw=true "PBR")
 
 
 CONTROLS
